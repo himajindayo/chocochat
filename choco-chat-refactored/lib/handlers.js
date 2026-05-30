@@ -1,0 +1,343 @@
+'use strict';
+
+const crypto   = require('crypto');
+const auth     = require('./auth');
+const spam     = require('./spam');
+const validate = require('./validate');
+const session  = require('./session');
+const msgCache = require('./msgCache');
+const { processCommand } = require('./commands');
+const { isThemeMode, normalizeThemeMode } = require('./theme');
+const { COLOR_RE, UUID_RE, TOKEN_RE, SUPER_ADMIN_ID } = require('./constants');
+
+// ── ヘルパー ──────────────────────────────────────────────────────────────────
+function asFn(fn) { return typeof fn === 'function' ? fn : () => {}; }
+function onDbErr(e) {
+  console.error('[DB]', e.message);
+  return { success: false, error: 'データベースエラーが発生しました' };
+}
+
+function buildMsg(senderId, senderUsername, message, color, replyTo, isAdmin) {
+  return {
+    id:             crypto.randomUUID(),
+    senderId,
+    senderUsername: isAdmin ? `【管理者】${senderUsername}` : senderUsername,
+    message,
+    color:          COLOR_RE.test(color) ? color : '#000000',
+    timestamp:      new Date().toISOString(),
+    replyTo:        replyTo || null,
+  };
+}
+
+function sanitizeReplyTo(rt) {
+  if (!rt || typeof rt !== 'object' || Array.isArray(rt)) return null;
+  if (typeof rt.id !== 'string' || !UUID_RE.test(rt.id))  return null;
+  return {
+    id:             rt.id,
+    senderUsername: typeof rt.senderUsername === 'string' ? rt.senderUsername.slice(0, 50) : '',
+    message:        typeof rt.message === 'string'        ? rt.message.slice(0, 200)        : '',
+  };
+}
+
+async function saveMsg(msg, db) {
+  msgCache.push(msg);
+  db.addMessage(msg).catch(e => console.error('[DB] addMessage:', e.message));
+}
+
+// ── ソケットハンドラ登録 ───────────────────────────────────────────────────────
+function registerHandlers(socket, io, db, broadcast, clientIp) {
+  let currentUserId  = null;
+  let currentToken   = null;
+  let currentAccount = null;
+
+  const ctx = { io, db, session, broadcast };
+
+  // ── 認証 ──────────────────────────────────────────────────────────────────
+  socket.on('signup', async (data, cb) => {
+    cb = asFn(cb);
+    if (!db.isUsingDatabase())
+      return cb({ success: false, error: 'データベース未接続', dbError: db.getDbError() });
+    if (await db.isBannedIp(clientIp))
+      return cb({ success: false, error: 'このIPアドレスはBANされています' });
+
+    const err = validate.validateUserId(data?.userId)
+             ?? validate.validateUsername(data?.username)
+             ?? validate.validatePassword(data?.password);
+    if (err) return cb({ success: false, error: err });
+
+    const result = await db.signup({
+      userId:   data.userId,
+      username: data.username.trim(),
+      password: data.password,
+      ip:       clientIp,
+    }).catch(onDbErr);
+    cb(result);
+  });
+
+  socket.on('accountLogin', async (data, cb) => {
+    cb = asFn(cb);
+    if (!db.isUsingDatabase())
+      return cb({ success: false, error: 'データベース未接続', dbError: db.getDbError() });
+
+    const lock = spam.isLoginRateLimited(clientIp);
+    if (lock.limited)
+      return cb({ success: false, error: `回数制限を超過しました。${lock.remaining}秒後に再試行してください。` });
+
+    if (await db.isBannedIp(clientIp))
+      return cb({ success: false, error: 'このIPアドレスはBANされています' });
+
+    if (typeof data?.userId !== 'string'   || !data.userId   || data.userId.length   > 30)
+      return cb({ success: false, error: 'ユーザーIDを入力してください' });
+    if (typeof data?.password !== 'string' || !data.password || data.password.length > 256)
+      return cb({ success: false, error: 'パスワードを入力してください' });
+
+    const result = await db.login({ userId: data.userId, password: data.password }).catch(onDbErr);
+    if (!result.success) {
+      spam.recordFailedLogin(clientIp);
+      return cb(result);
+    }
+
+    spam.clearLoginAttempts(clientIp);
+    const payload = await auth.handleLoginSuccess(socket, result.account, clientIp, db, session, broadcast);
+    if (!payload.success) return cb(payload);
+
+    payload.history    = msgCache.get();
+    currentUserId      = result.account.userId;
+    currentToken       = result.account.token;
+    currentAccount     = result.account;
+    cb(payload);
+  });
+
+  socket.on('tokenLogin', async (data, cb) => {
+    cb = asFn(cb);
+    if (!db.isUsingDatabase())
+      return cb({ success: false, error: 'データベース未接続' });
+    if (typeof data?.token !== 'string' || !TOKEN_RE.test(data.token))
+      return cb({ success: false, error: 'セッションが無効です' });
+    if (await db.isBannedIp(clientIp))
+      return cb({ success: false, error: 'このIPアドレスはBANされています' });
+
+    const result = await db.loginWithToken(data.token).catch(onDbErr);
+    if (!result.success) return cb(result);
+
+    const payload = await auth.handleLoginSuccess(socket, result.account, clientIp, db, session, broadcast);
+    if (!payload.success) return cb(payload);
+
+    payload.history = msgCache.get();
+    currentUserId   = result.account.userId;
+    currentToken    = data.token;
+    currentAccount  = result.account;
+    cb(payload);
+  });
+
+  socket.on('logout', async (cb) => {
+    cb = asFn(cb);
+    if (!currentUserId) return cb({ success: true });
+    if (currentToken) await db.logout(currentToken).catch(() => {});
+    cb({ success: true });
+    socket.disconnect(true);
+  });
+
+  // ── メッセージ ─────────────────────────────────────────────────────────────
+  socket.on('sendMessage', async (data, cb) => {
+    cb = asFn(cb);
+    if (!auth.requireAuth(currentUserId, cb)) return;
+
+    const message = typeof data?.message === 'string' ? data.message.trim() : '';
+    const err     = validate.validateMessage(message);
+    if (err) return cb({ success: false, error: err });
+
+    if (spam.isMessageRateLimited(currentUserId))
+      return cb({ success: false, error: '送信間隔が短すぎます' });
+
+    const muted = session.checkMuted(currentUserId);
+    if (muted.muted)
+      return cb({ success: false, error: `ミュートされています（残り ${muted.remaining}秒）` });
+
+    const color    = COLOR_RE.test(data?.color) ? data.color : (session.userColors.get(currentUserId) || '#000000');
+    const replyTo  = sanitizeReplyTo(data?.replyTo);
+    const isAdmin  = session.isAdminUser(currentUserId);
+    const isSuper  = session.isSuperAdmin(currentUserId);
+
+    // シャドウBANユーザー：コマンド以外は本人にだけ見せる
+    if (session.shadowBannedUsers.has(currentUserId)) {
+      if (!message.startsWith('/'))
+        socket.emit('message', buildMsg(currentUserId, currentAccount.username, message, color, replyTo, isAdmin));
+      return cb({ success: true });
+    }
+
+    if (message.startsWith('/')) {
+      const result = await processCommand(message, currentUserId, currentAccount.username, isAdmin, isSuper, socket, ctx);
+      if (result === null) return cb({ success: false, error: '不明なコマンドです（/help で確認）' });
+      if (result.type === 'error')   return cb({ success: false, error: result.message });
+      if (result.type === 'private') { socket.emit('systemMessage', result.message); return cb({ success: true }); }
+      if (result.type === 'command_result') {
+        const uMsg = buildMsg(currentUserId, currentAccount.username, result.userMessage, color, replyTo, isAdmin);
+        const bMsg = buildMsg('__system__', result.resultSender, result.resultMessage, result.resultColor, null, false);
+        await saveMsg(uMsg, db);
+        await saveMsg(bMsg, db);
+        io.emit('message', uMsg);
+        io.emit('message', bMsg);
+        return cb({ success: true });
+      }
+      // type === 'silent' など
+      return cb({ success: true });
+    }
+
+    const saveMuteFn = (until) => db.saveMute(currentUserId, until, SUPER_ADMIN_ID).catch(() => {});
+
+    const dup = spam.checkDuplicate(currentUserId, message, session.mutedUsers, saveMuteFn);
+    if (dup.detected)
+      return cb({ success: false, error: `同一メッセージの連投を検知しました（${dup.muteMinutes}分ミュート）` });
+
+    const flood = spam.checkFlood(currentUserId, message, session.mutedUsers, saveMuteFn);
+    if (flood.detected) {
+      io.emit('systemMessage', `${currentUserId} がフラッドと判定されました（${flood.muteMinutes}分ミュート）`);
+      return cb({ success: false, error: `フラッド検知によりミュートされました（${flood.muteMinutes}分）` });
+    }
+
+    const msg = buildMsg(currentUserId, currentAccount.username, message, color, replyTo, isAdmin);
+    await saveMsg(msg, db);
+    io.emit('message', msg);
+    cb({ success: true });
+  });
+
+  socket.on('editMessage', async (data, cb) => {
+    cb = asFn(cb);
+    if (!auth.requireAuth(currentUserId, cb)) return;
+
+    const err = validate.validateMessage(data?.message);
+    if (err) return cb({ success: false, error: err });
+
+    const muted = session.checkMuted(currentUserId);
+    if (muted.muted)
+      return cb({ success: false, error: `ミュートされています（残り ${muted.remaining}秒）` });
+
+    const isAdmin = session.isAdminUser(currentUserId);
+    if (!isAdmin) {
+      const cached = msgCache.find(data?.id);
+      if (cached && cached.senderId !== currentUserId)
+        return cb({ success: false, error: '編集権限がありません' });
+    }
+
+    const result = await db.updateMessage(data.id, currentUserId, data.message.trim(), isAdmin).catch(onDbErr);
+    if (!result.success) return cb(result);
+
+    msgCache.updateMessage(data.id, data.message.trim());
+    io.emit('messageUpdated', result.message);
+    cb({ success: true });
+  });
+
+  socket.on('deleteMessage', async (data, cb) => {
+    cb = asFn(cb);
+    if (!auth.requireAuth(currentUserId, cb)) return;
+
+    const id = typeof data?.id === 'string' ? data.id : null;
+    if (!id) return cb({ success: false, error: 'IDが指定されていません' });
+
+    const isAdmin = session.isAdminUser(currentUserId);
+    if (!isAdmin) {
+      const cached = msgCache.find(id);
+      if (!cached)                           return cb({ success: false, error: 'メッセージが見つかりません' });
+      if (cached.senderId !== currentUserId) return cb({ success: false, error: '削除権限がありません' });
+    }
+
+    const ok = await db.deleteMessage(id, currentUserId, isAdmin).catch(() => false);
+    if (!ok) return cb({ success: false, error: '削除に失敗しました' });
+
+    msgCache.removeById(id);
+    io.emit('messageDeleted', { id });
+    cb({ success: true });
+  });
+
+  // ── プライベートメッセージ ──────────────────────────────────────────────────
+  socket.on('deletePrivateMessage', async (data, cb) => {
+    cb = asFn(cb);
+    if (!auth.requireAuth(currentUserId, cb)) return;
+
+    const id = typeof data?.id === 'string' ? data.id : null;
+    if (!id) return cb({ success: false, error: 'IDが指定されていません' });
+
+    const result = await db.deletePrivateMessage(id, currentUserId, session.isAdminUser(currentUserId)).catch(onDbErr);
+    if (!result.success) return cb(result);
+
+    io.emit('privateMessageDeleted', { id });
+    cb({ success: true });
+  });
+
+  // ── タイピング ─────────────────────────────────────────────────────────────
+  socket.on('typing', () => {
+    if (!currentUserId || session.shadowBannedUsers.has(currentUserId)) return;
+    socket.broadcast.emit('userTyping', { userId: currentUserId, username: currentAccount.username });
+  });
+
+  socket.on('stopTyping', () => {
+    if (!currentUserId) return;
+    socket.broadcast.emit('userStoppedTyping', { userId: currentUserId });
+  });
+
+  // ── プロフィール ───────────────────────────────────────────────────────────
+  socket.on('updateAccountProfile', async (data, cb) => {
+    cb = asFn(cb);
+    if (!auth.requireAuth(currentUserId, cb)) return;
+
+    const updates = {};
+    if (data?.username !== undefined) {
+      const e = validate.validateUsername(data.username);
+      if (e) return cb({ success: false, error: e });
+      updates.username = data.username.trim();
+    }
+    if (data?.color !== undefined) {
+      const e = validate.validateColor(data.color);
+      if (e) return cb({ success: false, error: e });
+      updates.color = data.color;
+    }
+    if (data?.theme !== undefined) {
+      if (!isThemeMode(data.theme))
+        return cb({ success: false, error: '無効なテーマです' });
+      updates.theme = normalizeThemeMode(data.theme);
+    }
+    if (data?.statusText !== undefined) {
+      const e = validate.validateStatusText(data.statusText);
+      if (e) return cb({ success: false, error: e });
+      updates.statusText = data.statusText;
+    }
+
+    const result = await db.updateProfile(currentUserId, updates).catch(onDbErr);
+    if (!result.success) return cb(result);
+
+    if (updates.statusText !== undefined) session.userStatusMap.set(currentUserId, updates.statusText);
+    if (updates.color      !== undefined) session.userColors.set(currentUserId, updates.color);
+    if (updates.username   !== undefined && currentAccount) currentAccount.username = updates.username;
+    if (updates.theme      !== undefined && currentAccount) currentAccount.theme    = updates.theme;
+
+    io.emit('userStatusUpdate', {
+      userId:     currentUserId,
+      username:   result.account.username,
+      statusText: result.account.statusText,
+      color:      result.account.color,
+      theme:      result.account.theme,
+    });
+    cb({ success: true, account: result.account });
+  });
+
+  // ── 切断 ───────────────────────────────────────────────────────────────────
+  socket.on('disconnect', () => {
+    if (!currentUserId) return;
+    socket.broadcast.emit('userStoppedTyping', { userId: currentUserId });
+    const wasLast = session.unregisterSocket(currentUserId, socket.id);
+    if (wasLast) {
+      const online = session.getOnlineUserIds();
+      io.emit('userLeft', {
+        userId:    currentUserId,
+        username:  currentAccount?.username || currentUserId,
+        userCount: online.length,
+        users:     online,
+        statuses:  session.getUserStatuses(),
+      });
+      broadcast.broadcastAdminData().catch(() => {});
+    }
+  });
+}
+
+module.exports = { registerHandlers };

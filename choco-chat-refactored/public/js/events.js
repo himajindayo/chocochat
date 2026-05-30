@@ -1,0 +1,58 @@
+'use strict';
+
+socket.on('message',       addMsg);
+socket.on('systemMessage', t => { if (typeof t === 'string') addSys(t); });
+socket.on('privateMessage',        addPm);
+socket.on('privateMessageSent',    addPm);
+socket.on('privateMessageMonitor', addPmMonitor);
+
+socket.on('messageUpdated', m => {
+  const wrap = document.querySelector(`.msg[data-msgid="${CSS.escape(m.id)}"]`);
+  if (!wrap) return;
+  const body = wrap.querySelector('.msg-body');
+  if (body) body.innerHTML = linkify(esc(m.message || '')).replace(/\n/g, '<br>');
+  if (!wrap.querySelector('.msg-edit'))
+    wrap.querySelector('.msg-head')?.insertAdjacentHTML('beforeend', '<span class="msg-edit">(編集済み)</span>');
+});
+
+socket.on('messageDeleted',       ({ id }) => document.querySelector(`.msg[data-msgid="${CSS.escape(id)}"]`)?.remove());
+socket.on('allMessagesDeleted', () => document.querySelectorAll('.msg, .pm-wrap, .pm-monitor').forEach(e => e.remove()));
+socket.on('privateMessageDeleted',({ id }) => document.querySelector(`.pm-wrap[data-pmid="${CSS.escape(id)}"]`)?.remove());
+
+socket.on('userJoined', d => {
+  addSys(`${d.username} (${d.userId}) が入室しました`);
+  updateUserList(d.users || [], d.userCount);
+});
+socket.on('userLeft', d => {
+  addSys(`${d.username || d.userId} が退室しました`);
+  updateUserList(d.users || [], d.userCount);
+  App.typingMap.delete(d.userId);
+  updateTypingDisplay();
+});
+
+socket.on('userTyping',        ({ userId, username }) => { App.typingMap.set(userId, username); updateTypingDisplay(); });
+socket.on('userStoppedTyping', ({ userId })           => { App.typingMap.delete(userId);        updateTypingDisplay(); });
+
+socket.on('userStatusUpdate', d => {
+  if (d.userId === App.myUserId && d.username) {
+    App.myUsername = d.username;
+    document.getElementById('disp-uname').textContent = `(${App.myUsername})`;
+  }
+});
+
+socket.on('banned',       ({ message }) => { localStorage.removeItem('token'); alert(message || 'BANされました'); location.reload(); });
+socket.on('adminGranted', ({ message }) => { alert(message); location.reload(); });
+socket.on('adminRevoked', ({ message }) => { alert(message); location.reload(); });
+socket.on('profileUpdated', d => { if (d.color) document.getElementById('p-color').value = d.color; });
+socket.on('userIpList',     updateIpList);
+socket.on('userIpHistory',  updateIpHistory);
+socket.on('error', e => addSys(`エラー: ${typeof e === 'string' ? e : (e?.message || '')}`));
+
+socket.on('connect_error', e => { if (e?.message) addSys(`接続エラー: ${e.message}`); });
+socket.on('disconnect', r => {
+  if (['io server disconnect', 'transport close', 'transport error'].includes(r)) socket.connect();
+});
+
+// トークンによる自動ログイン
+const _token = localStorage.getItem('token');
+if (_token) socket.emit('tokenLogin', { token: _token }, onLoginResp);
