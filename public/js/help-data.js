@@ -11,16 +11,16 @@
     { name: '/dice',    desc: 'サイコロを振る（1〜6）' },
     { name: '/coin',    desc: 'コインを投げる（表/裏）' },
     { name: '/color',   desc: '名前の色を変更', example: '例: /color #ff0000' },
-    { name: '/pm',      desc: 'オンラインユーザーへ個別メッセージ', example: '例: /pm ユーザーID 内容' },
+    { name: '/pm',      desc: '個別メッセージを送信', example: '例: /pm ユーザーID 内容' },
   ];
 
   const ADMIN_COMMANDS = [
-    { name: '/delete',        desc: '全メッセージと systemMessage を削除' },
+    { name: '/delete',        desc: '全メッセージを削除' },
     { name: '/rule',          desc: '全体または指定ユーザーへルール案内を送信', example: '例: /rule userId' },
     { name: '/mute',          desc: 'ユーザーを一時ミュート', example: '例: /mute userId 10' },
     { name: '/unmute',        desc: 'ユーザーのミュートを解除', example: '例: /unmute userId' },
     { name: '/mutelist',      desc: 'ミュート中ユーザー一覧を表示' },
-    { name: '/ban',           desc: 'ユーザーをBAN（接続中なら切断）', example: '例: /ban userId' },
+    { name: '/ban',           desc: 'ユーザーをBAN', example: '例: /ban userId' },
     { name: '/unban',         desc: 'ユーザーのBANを解除', example: '例: /unban userId' },
     { name: '/banlist',       desc: 'BAN中ユーザー一覧を表示' },
     { name: '/shadowban',     desc: 'ユーザーをシャドウBAN', example: '例: /shadowban userId' },

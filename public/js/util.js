@@ -71,9 +71,8 @@ function updateUserList(users, count, statuses) {
   App.userStatuses = new Map(statusEntries);
   document.getElementById('u-count').textContent = App.onlineCount;
   document.getElementById('u-names').textContent = App.onlineUsers.length
-    ? `(${App.onlineUsers.map(u => `${u.username}(${u.userId})`).join(', ')})`
+    ? App.onlineUsers.map(u => `${u.username}(${u.userId})`).join(', ')
     : '';
-}
 
 function updateTypingDisplay() {
   const list = [...App.typingMap.entries()]
