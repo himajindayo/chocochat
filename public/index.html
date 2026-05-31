@@ -1,75 +1,96 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Choco Chat</title>
-<link rel="stylesheet" href="/css/style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🍫 Choco Chat</title>
+  <link rel="stylesheet" href="/css/style.css">
 </head>
 <body data-theme="system">
-
+ 
 <!-- 認証 -->
 <div id="auth-section">
   <div class="auth-box">
     <h1>🍫 Choco Chat</h1>
-
+ 
     <div id="login-form" class="auth-form active">
+      <h3>ログイン</h3>
       <input type="text"     id="l-uid"  placeholder="ユーザーID"  maxlength="20" autocomplete="username">
       <input type="password" id="l-pass" placeholder="パスワード" autocomplete="current-password">
       <button class="btn-primary" id="login-btn">ログイン</button>
-      <div class="auth-link"><a id="to-signup">新規登録</a></div>
+      <div class="auth-link">アカウントがありませんか？ <a id="to-signup">新規登録</a></div>
     </div>
-
+ 
     <div id="signup-form" class="auth-form">
+      <h3>新規登録</h3>
+      <p class="auth-hint">新しいアカウントを作成</p>
       <input type="text"     id="s-uid"   placeholder="ユーザーID（半角英数字 4〜20文字）" maxlength="20" autocomplete="username">
-      <input type="text"     id="s-uname" placeholder="ユーザー名（表示名）" maxlength="20">
-      <input type="password" id="s-pass"  placeholder="パスワード（4文字以上）" autocomplete="new-password">
-      <input type="password" id="s-pass2" placeholder="パスワード（確認）"     autocomplete="new-password">
+      <input type="text"     id="s-uname" placeholder="ユーザー名（表示名）"              maxlength="20">
+      <input type="password" id="s-pass"  placeholder="パスワード（4文字以上）"            autocomplete="new-password">
+      <input type="password" id="s-pass2" placeholder="パスワード（確認）"                autocomplete="new-password">
       <button class="btn-primary" id="signup-btn">アカウント作成</button>
-      <div class="auth-link"><a id="to-login">ログインはこちら</a></div>
+      <div class="auth-link">既にアカウントがありますか？ <a id="to-login">ログイン</a></div>
     </div>
-
+ 
     <div id="auth-msg"></div>
   </div>
 </div>
-
+ 
 <!-- チャット -->
 <div id="chat-section" class="hidden">
-  <div id="new-msg-notice" class="hidden">↓ 新着</div>
-
+ 
   <div class="chat-header"><h1>🍫 Choco Chat</h1></div>
-
+ 
   <div class="user-bar">
     <span id="disp-uid"    class="uid-label"></span>
     <span id="disp-uname"  class="uname-label"></span>
     <span id="admin-badge" class="admin-badge hidden">ADMIN</span>
   </div>
-  <div class="online-bar"><span id="u-count">0</span>人 <span id="u-names"></span></div>
+ 
+  <div class="online-bar">
+    <span>オンライン</span>
+    <span id="u-count">0</span>
+    <span id="u-names"></span>
+  </div>
+ 
   <div id="typing"></div>
-
+  <div id="new-msg-notice" class="hidden">↓ 新着メッセージ</div>
+ 
   <div id="chat-box"></div>
-
+ 
   <div id="reply-bar" class="hidden">
     <span id="reply-text"></span>
     <button id="cancel-reply">✕</button>
   </div>
-
-  <textarea id="msg-input" maxlength="200" placeholder="メッセージ…"></textarea>
+ 
+  <textarea id="msg-input" maxlength="200"
+    placeholder="メッセージを入力…　（Enterで送信 / Shift+Enterで改行）"></textarea>
   <div class="char-bar"><span id="char-count">0</span>/200</div>
+ 
   <div class="btn-row">
     <button id="send-btn">送信</button>
     <button id="omi-btn">おみくじ🎴</button>
     <button id="sys-toggle">入退室 ON</button>
     <button id="logout-btn">ログアウト</button>
   </div>
-
+ 
   <!-- 設定 -->
-  <div id="profile-box">
-    <h3>設定</h3>
-    <div class="prow"><label>ユーザー名</label><input type="text"  id="p-uname" maxlength="20"></div>
-    <div class="prow"><label>名前の色</label>  <input type="color" id="p-color" value="#000000"></div>
-    <div class="prow"><label>ステータス</label><input type="text"  id="p-status" maxlength="30"></div>
-    <div class="prow"><label>テーマ</label>
+  <div class="section-box" id="profile-box">
+    <h3>⚙️ 設定</h3>
+    <div class="prow">
+      <label>ユーザー名</label>
+      <input type="text"  id="p-uname"  maxlength="20" placeholder="表示名">
+    </div>
+    <div class="prow">
+      <label>名前の色</label>
+      <input type="color" id="p-color"  value="#000000">
+    </div>
+    <div class="prow">
+      <label>ステータス</label>
+      <input type="text"  id="p-status" maxlength="30" placeholder="ステータスメッセージ">
+    </div>
+    <div class="prow">
+      <label>テーマ</label>
       <select id="p-theme">
         <option value="system">システム</option>
         <option value="dark">ダーク</option>
@@ -78,21 +99,61 @@
     </div>
     <button id="save-profile">更新</button>
   </div>
+ 
+  <!-- コマンド一覧 -->
+  <div class="section-box">
+    <h3>⚡ コマンド一覧</h3>
+    <div class="command-grid">
 
+      <div class="command-item">
+        <div class="command-name">/help</div>
+        <div class="command-desc">ヘルプを表示</div>
+      </div>
+
+      <div class="command-item">
+        <div class="command-name">/omikuji</div>
+        <div class="command-desc">おみくじを引く</div>
+      </div>
+ 
+      <div class="command-item">
+        <div class="command-name">/dice</div>
+        <div class="command-desc">サイコロを振る（1〜6）</div>
+      </div>
+
+      <div class="command-item">
+        <div class="command-name">/coin</div>
+        <div class="command-desc">コインを投げる（表/裏）</div>
+      </div>
+
+      <div class="command-item">
+        <div class="command-name">/color</div>
+        <div class="command-desc">名前の色を変更</div>
+        <div class="command-example">例: /color #カラー</div>
+      </div> 
+
+      <div class="command-item">
+        <div class="command-name">/pm</div>
+        <div class="command-desc">プライベートメッセージを送る</div>
+        <div class="command-example">例: /pm ユーザーID 内容</div>
+      </div> 
+    </div>
+  </div>
+ 
   <!-- 管理者パネル（管理者のみ表示） -->
   <div id="admin-panel" class="hidden">
-    <h3>管理者パネル</h3>
+    <h3>🔧 管理者パネル</h3>
     <button class="adm-btn" id="toggle-ip">オンラインIP</button>
     <button class="adm-btn" id="toggle-hist">IP履歴</button>
     <div id="ip-list"    class="hidden"></div>
     <div id="ip-history" class="hidden"></div>
   </div>
+ 
 </div>
-
+ 
 <!-- 編集モーダル -->
 <div id="edit-modal" class="modal hidden">
   <div class="modal-inner">
-    <h3>編集</h3>
+    <h3>✏️ メッセージを編集</h3>
     <textarea id="edit-input" maxlength="200"></textarea>
     <div class="modal-btns">
       <button id="save-edit">保存</button>
@@ -100,7 +161,7 @@
     </div>
   </div>
 </div>
-
+ 
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <script src="/js/init.js"></script>
 <script src="/js/theme.js"></script>
