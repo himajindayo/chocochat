@@ -91,32 +91,9 @@ async function getActiveMutes() {
   }));
 }
 
-async function saveUserIpHistory(userId, ip) {
-  await pool.query(
-    `INSERT INTO user_ip_history (user_id, ip_address)
-     VALUES ($1,$2)
-     ON CONFLICT (user_id, ip_address) DO UPDATE SET last_seen=NOW()`,
-    [userId, normalizeIp(ip)]
-  );
-}
-
-async function getAllUserIpHistory() {
-  const res = await pool.query(
-    `SELECT user_id, ip_address, first_seen, last_seen
-     FROM user_ip_history ORDER BY last_seen DESC LIMIT 500`
-  );
-  return res.rows.map(r => ({
-    userId:    r.user_id,
-    ipAddress: r.ip_address,
-    firstSeen: r.first_seen,
-    lastSeen:  r.last_seen,
-  }));
-}
-
 module.exports = {
   _setPool,
   addBan, removeBan, isBannedUser, isBannedIp, getBannedUsers,
   addShadowBan, removeShadowBan, getShadowBannedIds,
-  saveMute, clearMute, getActiveMutes,
-  saveUserIpHistory, getAllUserIpHistory,
+  saveMute, clearMute, getActiveMutes
 };

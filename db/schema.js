@@ -62,6 +62,7 @@ async function createTables(pool) {
       sender_username     VARCHAR(50) NOT NULL,
       message             TEXT        NOT NULL,
       color               VARCHAR(20) NOT NULL DEFAULT '#000000',
+      sender_status       VARCHAR(100) NOT NULL DEFAULT '',
       timestamp           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       reply_to_id         VARCHAR(36),
       reply_to_sender_id  VARCHAR(30),
@@ -73,6 +74,10 @@ async function createTables(pool) {
   `);
   await pool.query(`
     CREATE INDEX IF NOT EXISTS idx_messages_ts ON messages(timestamp DESC)
+  `);
+  await pool.query(`
+    ALTER TABLE messages
+    ADD COLUMN IF NOT EXISTS sender_status VARCHAR(100) NOT NULL DEFAULT ''
   `);
 
   await pool.query(`
@@ -89,15 +94,6 @@ async function createTables(pool) {
     CREATE INDEX IF NOT EXISTS idx_pm_ts ON private_messages(timestamp DESC)
   `);
 
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS user_ip_history (
-      user_id     VARCHAR(30) NOT NULL,
-      ip_address  VARCHAR(45) NOT NULL,
-      first_seen  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      last_seen   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      PRIMARY KEY (user_id, ip_address)
-    )
-  `);
 }
 
 async function seedAdmin(pool) {

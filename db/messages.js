@@ -12,14 +12,15 @@ function toMsg(row) {
     senderUsername: row.sender_username,
     message:        row.message,
     color:          row.color,
+    senderStatus:   row.sender_status || '',
     timestamp:      row.timestamp,
     edited:         row.edited,
     editedAt:       row.edited_at,
     replyTo: row.reply_to_id ? {
       id:             row.reply_to_id,
-      senderId:       row.reply_to_sender_id,
-      senderUsername: row.reply_to_username,
-      message:        row.reply_to_message,
+      senderId:       row.reply_to_sender_id || '',
+      senderUsername: row.reply_to_username || '',
+      message:        row.reply_to_message || '',
     } : null,
   };
 }
@@ -34,13 +35,13 @@ async function getMessages(limit = MAX_MSG_HISTORY) {
 async function addMessage(data) {
   await pool.query(`
     INSERT INTO messages
-      (id, sender_id, sender_username, message, color, timestamp,
+      (id, sender_id, sender_username, message, color, sender_status, timestamp,
        reply_to_id, reply_to_sender_id, reply_to_username, reply_to_message)
-    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
     ON CONFLICT (id) DO NOTHING
   `, [
     data.id, data.senderId, data.senderUsername, data.message,
-    data.color, data.timestamp,
+    data.color, data.senderStatus || '', data.timestamp,
     data.replyTo?.id             ?? null,
     data.replyTo?.senderId       ?? null,
     data.replyTo?.senderUsername ?? null,
