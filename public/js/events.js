@@ -24,7 +24,7 @@ socket.on('userJoined', d => {
   updateUserList(d.users || [], d.userCount, d.userStatuses);
 });
 socket.on('userLeft', d => {
-  addSys(`${d.username || d.userId} が退室しました`);
+  addSys(`${d.username} (${d.userId}) が退室しました`);
   updateUserList(d.users || [], d.userCount, d.userStatuses);
   App.typingMap.delete(d.userId);
   updateTypingDisplay();
