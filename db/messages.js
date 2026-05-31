@@ -18,9 +18,9 @@ function toMsg(row) {
     editedAt:       row.edited_at,
     replyTo: row.reply_to_id ? {
       id:             row.reply_to_id,
-      senderId:       row.reply_to_sender_id,
-      senderUsername: row.reply_to_username,
-      message:        row.reply_to_message,
+      senderId:       row.reply_to_sender_id || '',
+      senderUsername: row.reply_to_username || '',
+      message:        row.reply_to_message || '',
     } : null,
   };
 }
