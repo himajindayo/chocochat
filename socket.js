@@ -9,7 +9,7 @@ const msgCache      = require('./lib/msgCache');
 const { registerHandlers } = require('./lib/handlers');
 
 function parseAllowedOrigins(value) {
-  if (!value) return [];
+  if (value === undefined || value === null || String(value).trim() === '') return null;
   return String(value)
     .split(',')
     .map(s => s.trim())
@@ -17,6 +17,7 @@ function parseAllowedOrigins(value) {
 }
 
 function isOriginAllowed(origin, host, allowedOrigins) {
+  if (allowedOrigins === null) return true;
   if (!origin) return true;
   if (allowedOrigins.includes(origin)) return true;
   try {
@@ -30,7 +31,7 @@ function isOriginAllowed(origin, host, allowedOrigins) {
 function createSocketServer(httpServer, db) {
   const allowedOrigins = parseAllowedOrigins(process.env.ALLOWED_ORIGIN);
   const io = new Server(httpServer, {
-    cors:              { origin: allowedOrigins.length > 0 ? allowedOrigins : false, methods: ['GET', 'POST'] },
+    cors:              { origin: allowedOrigins === null ? '*' : allowedOrigins, methods: ['GET', 'POST'] },
     pingTimeout:       60_000,
     pingInterval:      10_000,
     transports:        ['websocket', 'polling'],
