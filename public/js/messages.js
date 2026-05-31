@@ -27,6 +27,7 @@ function addMsg(m) {
     : '';
 
   const editBadge = m.edited ? '<span class="msg-edit">(編集済み)</span>' : '';
+  const statusHtml = m.senderStatus ? `<span class="msg-status">${esc(m.senderStatus)}</span>` : '';
   const bodyHtml  = linkify(esc(m.message || '')).replace(/\n/g, '<br>');
   const repBtn    = `<button class="act" data-action="reply">返信</button>`;
   const editBtn   = (isMine || App.isAdmin) ? `<button class="act" data-action="edit">編集</button>`   : '';
@@ -34,7 +35,7 @@ function addMsg(m) {
 
   wrap.innerHTML = `${replyHtml}
 <div class="msg-head">
-  <span class="msg-uname">${esc(m.senderUsername || '')}</span>
+  <span class="msg-uname">${esc(m.senderUsername || '')}</span>${statusHtml}
   <span class="msg-uid">(${esc(m.senderId || '')})</span>
   <span class="msg-time">${fmtTime(m.timestamp)}</span>${editBadge}
 </div>

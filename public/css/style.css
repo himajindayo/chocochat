@@ -475,6 +475,16 @@ a:hover {
   font-family: monospace;
 }
 
+.msg-status {
+  font-size: 10px;
+  color: var(--sys-text);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 1px 7px;
+  line-height: 1.4;
+}
+
 .msg-time {
   font-size: 10px;
   color: var(--sys-text);

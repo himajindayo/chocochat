@@ -2,7 +2,6 @@
 
 const { Server }    = require('socket.io');
 const trustProxy    = require('./trustProxy');
-const broadcast     = require('./lib/broadcast');
 const session       = require('./lib/session');
 const spam          = require('./lib/spam');
 const msgCache      = require('./lib/msgCache');
@@ -18,7 +17,6 @@ function createSocketServer(httpServer, db) {
     connectTimeout:    45_000,
   });
 
-  broadcast.init(io, session, db);
 
   io.on('connection', (socket) => {
     const clientIp = trustProxy.getClientIp(socket);
@@ -29,12 +27,8 @@ function createSocketServer(httpServer, db) {
       return;
     }
 
-    registerHandlers(socket, io, db, broadcast, clientIp);
+    registerHandlers(socket, io, db, clientIp);
   });
-
-  setInterval(() => {
-    if (io.sockets.sockets.size > 0) broadcast.broadcastAdminData().catch(() => {});
-  }, 15_000);
 
   return io;
 }

@@ -21,11 +21,11 @@ socket.on('privateMessageDeleted',({ id }) => document.querySelector(`.pm-wrap[d
 
 socket.on('userJoined', d => {
   addSys(`${d.username} (${d.userId}) が入室しました`);
-  updateUserList(d.users || [], d.userCount);
+  updateUserList(d.users || [], d.userCount, d.userStatuses);
 });
 socket.on('userLeft', d => {
   addSys(`${d.username || d.userId} が退室しました`);
-  updateUserList(d.users || [], d.userCount);
+  updateUserList(d.users || [], d.userCount, d.userStatuses);
   App.typingMap.delete(d.userId);
   updateTypingDisplay();
 });
@@ -38,14 +38,13 @@ socket.on('userStatusUpdate', d => {
     App.myUsername = d.username;
     document.getElementById('disp-uname').textContent = `(${App.myUsername})`;
   }
+  updateUserList(App.onlineUsers, App.onlineCount, d.userStatuses);
 });
 
 socket.on('banned',       ({ message }) => { localStorage.removeItem('token'); alert(message || 'BANされました'); location.reload(); });
 socket.on('adminGranted', ({ message }) => { alert(message); location.reload(); });
 socket.on('adminRevoked', ({ message }) => { alert(message); location.reload(); });
 socket.on('profileUpdated', d => { if (d.color) document.getElementById('p-color').value = d.color; });
-socket.on('userIpList',     updateIpList);
-socket.on('userIpHistory',  updateIpHistory);
 socket.on('error', e => addSys(`エラー: ${typeof e === 'string' ? e : (e?.message || '')}`));
 
 socket.on('connect_error', e => { if (e?.message) addSys(`接続エラー: ${e.message}`); });

@@ -18,10 +18,11 @@ function enterChat(res) {
 
   document.getElementById('disp-uid').textContent   = acc.userId;
   document.getElementById('disp-uname').textContent = `(${acc.username})`;
+  App.userStatuses.clear();
+  if (acc.statusText) App.userStatuses.set(acc.userId, acc.statusText);
 
   if (App.isAdmin) {
     document.getElementById('admin-badge').classList.remove('hidden');
-    document.getElementById('admin-panel').classList.remove('hidden');
   }
 
   applyTheme(acc.theme || 'system');
@@ -43,9 +44,7 @@ function enterChat(res) {
     (res.privateMessages || []).forEach(addPm);
   }
 
-  updateUserList(res.users || [], res.userCount || 0);
-  if (res.userIpList)    updateIpList(res.userIpList);
-  if (res.userIpHistory) updateIpHistory(res.userIpHistory);
+  updateUserList(res.users || [], res.userCount || 0, res.userStatuses);
 
   const box = document.getElementById('chat-box');
   box.scrollTop  = box.scrollHeight;

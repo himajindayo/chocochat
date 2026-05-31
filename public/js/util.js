@@ -13,6 +13,9 @@ const App = {
   themeMode:   'system',
   typingMap:   new Map(),
   typingTimer: null,
+  userStatuses: new Map(),
+  onlineUsers:  [],
+  onlineCount:  0,
 };
 
 /** HTML エスケープ */
@@ -42,9 +45,15 @@ function fmtTime(ts) {
   return `${d.getFullYear()}/${p(d.getMonth() + 1)}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
-function updateUserList(users, count) {
-  document.getElementById('u-count').textContent = count ?? users.length;
-  document.getElementById('u-names').textContent = users.length ? `(${users.join(', ')})` : '';
+function updateUserList(users, count, statuses) {
+  App.onlineUsers = Array.isArray(users) ? [...users] : [];
+  App.onlineCount = typeof count === 'number' ? count : App.onlineUsers.length;
+  const statusMap = statuses;
+  App.userStatuses = new Map(Object.entries(statusMap));
+  document.getElementById('u-count').textContent = App.onlineCount;
+  document.getElementById('u-names').textContent = App.onlineUsers.length
+    ? `(${App.onlineUsers.map(u => statusMap[u] ? `${u}・${statusMap[u]}` : u).join(', ')})`
+    : '';
 }
 
 function updateTypingDisplay() {
