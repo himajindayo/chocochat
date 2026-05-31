@@ -167,6 +167,8 @@ a:hover {
   justify-content: center;
   align-items: center;
   padding: 20px;
+  position: relative;
+  z-index: 1;
   background: linear-gradient(135deg, var(--auth-grad-a) 0%, var(--auth-grad-b) 100%);
 }
 
@@ -178,6 +180,9 @@ a:hover {
   width: 100%;
   max-width: 420px;
   border: 1px solid var(--border);
+  position: relative;
+  z-index: 2;
+  pointer-events: auto;
   animation: fadeUp 0.4s ease both;
 }
 
@@ -548,6 +553,7 @@ a:hover {
   font-size: 12px;
   font-style: italic;
   padding: 3px 0;
+  white-space: pre-wrap;
 }
 
 .pm-wrap {

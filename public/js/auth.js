@@ -10,10 +10,13 @@ function switchForm(f) {
   document.getElementById('login-form').classList.toggle('active',  f === 'login');
   document.getElementById('signup-form').classList.toggle('active', f === 'signup');
   setAuthMsg('');
+  if (f === 'login') setTimeout(() => document.getElementById('l-uid')?.focus(), 0);
+  if (f === 'signup') setTimeout(() => document.getElementById('s-uid')?.focus(), 0);
 }
 
 document.getElementById('to-signup').onclick = () => switchForm('signup');
 document.getElementById('to-login').onclick  = () => switchForm('login');
+setTimeout(() => document.getElementById('l-uid')?.focus(), 0);
 
 // ── ログイン ──────────────────────────────────────────────────────────────────
 function doLogin() {
@@ -25,8 +28,8 @@ function doLogin() {
 }
 
 document.getElementById('login-btn').onclick   = doLogin;
-document.getElementById('l-uid').onkeypress    = e => e.key === 'Enter' && doLogin();
-document.getElementById('l-pass').onkeypress   = e => e.key === 'Enter' && doLogin();
+document.getElementById('l-uid').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+document.getElementById('l-pass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
 
 // ── 新規登録 ──────────────────────────────────────────────────────────────────
 document.getElementById('signup-btn').onclick = () => {

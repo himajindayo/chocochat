@@ -35,8 +35,8 @@ function addMsg(m) {
 
   wrap.innerHTML = `${replyHtml}
 <div class="msg-head">
-  <span class="msg-uname">${esc(m.senderUsername || '')}</span>${statusHtml}
-  <span class="msg-uid">(${esc(m.senderId || '')})</span>
+  <span class="msg-uname">${esc(m.senderUsername || '')}</span>
+  <span class="msg-uid">(${esc(m.senderId || '')})</span>${statusHtml}
   <span class="msg-time">${fmtTime(m.timestamp)}</span>${editBadge}
 </div>
 <div class="msg-body">${bodyHtml}</div>
