@@ -21,7 +21,7 @@ async function initDatabase() {
   try {
     pool = new Pool({
       connectionString:        url,
-      ssl:                     { rejectUnauthorized: true },
+      ssl:                     { rejectUnauthorized: false },
       connectionTimeoutMillis: 5_000,
       idleTimeoutMillis:       10_000,
       max:                     20,
