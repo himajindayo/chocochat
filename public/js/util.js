@@ -16,6 +16,7 @@ const App = {
   userStatuses: new Map(),
   onlineUsers:  [],
   onlineCount:  0,
+  onlineSignature: '',
 };
 
 /** HTML エスケープ */
@@ -45,14 +46,32 @@ function fmtTime(ts) {
   return `${d.getFullYear()}/${p(d.getMonth() + 1)}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
+function normalizeOnlineUser(u) {
+  if (u && typeof u === 'object') {
+    const userId = String(u.userId || '').trim();
+    if (!userId) return null;
+    return { userId, username: String(u.username || userId).trim() || userId };
+  }
+  const userId = String(u || '').trim();
+  return userId ? { userId, username: userId } : null;
+}
+
 function updateUserList(users, count, statuses) {
-  App.onlineUsers = Array.isArray(users) ? [...users] : [];
-  App.onlineCount = typeof count === 'number' ? count : App.onlineUsers.length;
-  const statusMap = statuses;
-  App.userStatuses = new Map(Object.entries(statusMap));
+  const list = Array.isArray(users) ? users : [];
+  const normalized = list.map(normalizeOnlineUser).filter(Boolean);
+  const onlineCount = typeof count === 'number' ? count : normalized.length;
+  const statusMap = statuses && typeof statuses === 'object' ? statuses : {};
+  const statusEntries = Object.entries(statusMap).sort(([a], [b]) => a.localeCompare(b));
+  const nextSignature = `${onlineCount}|${normalized.map(u => `${u.userId}:${u.username}`).join(',')}|${statusEntries.map(([k, v]) => `${k}:${v}`).join(',')}`;
+  if (nextSignature === App.onlineSignature) return;
+
+  App.onlineUsers = normalized;
+  App.onlineCount = onlineCount;
+  App.onlineSignature = nextSignature;
+  App.userStatuses = new Map(statusEntries);
   document.getElementById('u-count').textContent = App.onlineCount;
   document.getElementById('u-names').textContent = App.onlineUsers.length
-    ? `(${App.onlineUsers.map(u => statusMap[u] ? `${u}・${statusMap[u]}` : u).join(', ')})`
+    ? `(${App.onlineUsers.map(u => `${u.username}(${u.userId})`).join(', ')})`
     : '';
 }
 

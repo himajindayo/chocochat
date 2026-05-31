@@ -38,7 +38,7 @@ document.getElementById('signup-btn').onclick = () => {
   const password = document.getElementById('s-pass').value;
   const confirm  = document.getElementById('s-pass2').value;
 
-  if (!/^[A-Za-z0-9]{3,20}$/.test(userId))   return setAuthMsg('ユーザーIDは半角英数字4〜20文字で入力してください');
+  if (!/^[A-Za-z0-9]{4,20}$/.test(userId))   return setAuthMsg('ユーザーIDは半角英数字4〜20文字で入力してください');
   if (!username || username.length > 20)      return setAuthMsg('ユーザー名を入力してください（20文字以内）');
   if (username.includes('管理者'))            return setAuthMsg('ユーザー名に「管理者」は含められません');
   if (password.length < 4)                   return setAuthMsg('パスワードは4文字以上で入力してください');

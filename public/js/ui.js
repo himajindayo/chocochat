@@ -1,5 +1,18 @@
 'use strict';
 
+function renderCommandGrid() {
+  const grid = document.getElementById('command-grid');
+  if (!grid) return;
+  const cards = (window.CommandHelp?.getCommandCards?.({ isAdmin: App.isAdmin, isSuperAdmin: App.isSuperAdmin }) || []);
+  grid.innerHTML = cards.map(card => `
+      <div class="command-item">
+        <div class="command-name">${esc(card.name)}</div>
+        <div class="command-desc">${esc(card.desc)}</div>
+        ${card.example ? `<div class="command-example">${esc(card.example)}</div>` : ''}
+      </div>
+    `).join('');
+}
+
 /**
  * ログイン成功後にチャット画面へ遷移し、初期状態を描画する。
  * auth.js の onLoginResp から呼ばれる。
@@ -8,7 +21,7 @@ function enterChat(res) {
   const acc = res.account;
   App.myUserId   = acc.userId;
   App.myUsername = acc.username;
-  App.isAdmin    = acc.isAdmin || false;
+  App.isAdmin     = acc.isAdmin || false;
   App.isSuperAdmin = acc.userId === 'ADMIN';
 
   localStorage.setItem('token', acc.token);
@@ -26,6 +39,7 @@ function enterChat(res) {
   }
 
   applyTheme(acc.theme || 'system');
+  renderCommandGrid();
   document.getElementById('p-color').value  = acc.color      || '#000000';
   document.getElementById('p-status').value = acc.statusText || '';
   document.getElementById('p-uname').value  = acc.username   || '';

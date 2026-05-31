@@ -24,7 +24,7 @@
     <div id="signup-form" class="auth-form">
       <h3>新規登録</h3>
       <p class="auth-hint">新しいアカウントを作成</p>
-      <input type="text"     id="s-uid"   placeholder="ユーザーID（半角英数字 4〜20文字）" maxlength="20" autocomplete="username">
+      <input type="text"     id="s-uid"   placeholder="ユーザーID（半角英数字 4〜20文字）" minlength="4" maxlength="20" autocomplete="username">
       <input type="text"     id="s-uname" placeholder="ユーザー名（表示名）"              maxlength="20">
       <input type="password" id="s-pass"  placeholder="パスワード（4文字以上）"            autocomplete="new-password">
       <input type="password" id="s-pass2" placeholder="パスワード（確認）"                autocomplete="new-password">
@@ -97,46 +97,16 @@
         <option value="light">ライト</option>
       </select>
     </div>
-    <button id="save-profile">更新</button>
+    <div class="profile-actions">
+      <button id="save-profile">更新</button>
+      <span id="profile-save-status" aria-live="polite"></span>
+    </div>
   </div>
  
   <!-- コマンド一覧 -->
   <div class="section-box">
     <h3>⚡ コマンド一覧</h3>
-    <div class="command-grid">
-
-      <div class="command-item">
-        <div class="command-name">/help</div>
-        <div class="command-desc">ヘルプを表示</div>
-      </div>
-
-      <div class="command-item">
-        <div class="command-name">/omikuji</div>
-        <div class="command-desc">おみくじを引く</div>
-      </div>
- 
-      <div class="command-item">
-        <div class="command-name">/dice</div>
-        <div class="command-desc">サイコロを振る（1〜6）</div>
-      </div>
-
-      <div class="command-item">
-        <div class="command-name">/coin</div>
-        <div class="command-desc">コインを投げる（表/裏）</div>
-      </div>
-
-      <div class="command-item">
-        <div class="command-name">/color</div>
-        <div class="command-desc">名前の色を変更</div>
-        <div class="command-example">例: /color #カラー</div>
-      </div> 
-
-      <div class="command-item">
-        <div class="command-name">/pm</div>
-        <div class="command-desc">プライベートメッセージを送る</div>
-        <div class="command-example">例: /pm ユーザーID 内容</div>
-      </div> 
-    </div>
+    <div class="command-grid" id="command-grid"></div>
   </div>
  
  
@@ -154,9 +124,10 @@
   </div>
 </div>
  
-<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<script src="https://cdn.socket.io/4.8.3/socket.io.min.js"></script>
 <script src="/js/init.js"></script>
 <script src="/js/theme.js"></script>
+<script src="/js/help-data.js"></script>
 <script src="/js/util.js"></script>
 <script src="/js/messages.js"></script>
 <script src="/js/ui.js"></script>

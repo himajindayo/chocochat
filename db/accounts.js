@@ -127,13 +127,6 @@ async function setAdminFlag(userId, isAdmin) {
   return res.rows.length > 0;
 }
 
-async function accountExists(userId) {
-  const res = await pool.query(
-    'SELECT user_id FROM accounts WHERE user_id = $1', [userId]
-  );
-  return res.rows.length > 0;
-}
-
 async function getAdminUserIds() {
   const res = await pool.query('SELECT user_id FROM accounts WHERE is_admin = TRUE');
   return res.rows.map(r => r.user_id);
@@ -142,5 +135,5 @@ async function getAdminUserIds() {
 module.exports = {
   _setPool,
   signup, login, loginWithToken, logout,
-  updateProfile, setAdminFlag, accountExists, getAdminUserIds,
+  updateProfile, setAdminFlag, getAdminUserIds,
 };

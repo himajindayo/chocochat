@@ -66,7 +66,6 @@ module.exports = {
   updateProfile:   accounts.updateProfile,
   getAdminUserIds: accounts.getAdminUserIds,
   setAdminFlag:    accounts.setAdminFlag,
-  accountExists:   accounts.accountExists,
 
   // messages
   getMessages:        messages.getMessages,
@@ -93,6 +92,4 @@ module.exports = {
   saveMute:            moderation.saveMute,
   clearMute:           moderation.clearMute,
   getActiveMutes:      moderation.getActiveMutes,
-  saveUserIpHistory:   moderation.saveUserIpHistory,
-  getAllUserIpHistory:  moderation.getAllUserIpHistory,
 };

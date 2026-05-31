@@ -64,14 +64,25 @@ document.getElementById('sys-toggle').onclick = () => {
 };
 
 document.getElementById('logout-btn').onclick = () => {
+  if (!confirm('ログアウトしますか？')) return;
   socket.emit('logout', () => { localStorage.removeItem('token'); location.reload(); });
 };
 
+function setProfileSaveStatus(message, isError = false) {
+  const el = document.getElementById('profile-save-status');
+  if (!el) return;
+  el.textContent = message || '';
+  el.classList.toggle('error', !!isError);
+  el.classList.toggle('success', !!message && !isError);
+}
+
 // ── プロフィール更新 ──────────────────────────────────────────────────────────
 document.getElementById('save-profile').onclick = () => {
+  const btn = document.getElementById('save-profile');
   const uname = document.getElementById('p-uname').value.trim();
   if (uname.includes('管理者')) {
     addSys('ユーザー名に「管理者」は含められません');
+    setProfileSaveStatus('ユーザー名を確認してください', true);
     return;
   }
   const updates = {
@@ -81,7 +92,15 @@ document.getElementById('save-profile').onclick = () => {
   };
   if (uname) updates.username = uname;
 
+  btn.disabled = true;
+  const originalText = btn.textContent;
+  btn.textContent = '保存中...';
+  setProfileSaveStatus('保存しています...');
+
   socket.emit('updateAccountProfile', updates, res => {
+    btn.disabled = false;
+    btn.textContent = originalText;
+
     if (res?.success) {
       if (res.account.username) {
         App.myUsername = res.account.username;
@@ -89,8 +108,12 @@ document.getElementById('save-profile').onclick = () => {
       }
       document.getElementById('p-theme').value = res.account.theme || 'system';
       applyTheme(res.account.theme || 'system');
+      setProfileSaveStatus('保存しました');
+      setTimeout(() => setProfileSaveStatus(''), 1800);
     } else {
-      alert(res?.error || '更新に失敗しました');
+      const message = res?.error || '更新に失敗しました';
+      setProfileSaveStatus(message, true);
+      alert(message);
     }
   });
 };

@@ -765,6 +765,13 @@ a:hover {
   cursor: pointer;
 }
 
+.profile-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 #save-profile {
   padding: 8px 20px;
   background: var(--success);
@@ -774,11 +781,31 @@ a:hover {
   cursor: pointer;
   font-size: 13px;
   font-weight: bold;
-  transition: filter .2s;
+  transition: filter .2s, opacity .2s, transform .2s;
 }
 
 #save-profile:hover {
   filter: brightness(.9);
+}
+
+#save-profile:disabled {
+  cursor: wait;
+  opacity: .72;
+  transform: none;
+}
+
+#profile-save-status {
+  min-height: 1em;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+#profile-save-status.success {
+  color: var(--success);
+}
+
+#profile-save-status.error {
+  color: #e74c3c;
 }
 
 /* コマンド */
