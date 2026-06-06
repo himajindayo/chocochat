@@ -62,7 +62,11 @@ byId('sys-toggle').onclick = () => {
 
 byId('logout-btn').onclick = () => {
   if (!confirm('ログアウトしますか？')) return;
-  socket.emit('logout', () => { localStorage.removeItem('token'); location.reload(); });
+  App.intentionalDisconnect = true;
+  socket.emit('logout', () => {
+    localStorage.removeItem('token');
+    location.reload();
+  });
 };
 
 function setProfileSaveStatus(message, isError = false) {
@@ -76,17 +80,23 @@ function setProfileSaveStatus(message, isError = false) {
 byId('save-profile').onclick = () => {
   const btn = byId('save-profile');
   const uname = byId('p-uname').value.trim();
-  if (uname.includes('管理者')) {
-    addSys('ユーザー名に「管理者」は含められません');
-    setProfileSaveStatus('ユーザー名を確認してください', true);
+
+  if (!uname) {
+    setProfileSaveStatus('ユーザー名を入力してください', true);
     return;
   }
+
+  if (uname.includes('管理者')) {
+    setProfileSaveStatus('ユーザー名に「管理者」は含められません', true);
+    return;
+  }
+
   const updates = {
     color: byId('p-color').value,
     theme: byId('p-theme').value,
     statusText: byId('p-status').value,
+    username: uname,
   };
-  if (uname) updates.username = uname;
 
   btn.disabled = true;
   const originalText = btn.textContent;

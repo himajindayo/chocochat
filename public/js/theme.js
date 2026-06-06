@@ -8,7 +8,6 @@ function normalizeThemeMode(theme) {
   return SUPPORTED_THEME_MODES.has(value) ? value : 'system';
 }
 
-// data-theme 属性だけで CSS が動作するため data-theme-mode は不要
 function applyTheme(theme = 'system') {
   const mode = normalizeThemeMode(theme);
   document.body.dataset.theme = mode;

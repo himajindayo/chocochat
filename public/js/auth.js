@@ -44,7 +44,7 @@ byId('signup-btn').onclick = () => {
 
   socket.emit('signup', { userId, username, password }, res => {
     if (res?.success) {
-      setAuthMsg(`登録完了 (ID: ${esc(res.account.userId)})`, false);
+      setAuthMsg(`登録完了 (ID: ${esc(res.userId)})`, false);
       byId('l-uid').value = userId;
       setTimeout(() => switchForm('login'), 1600);
     } else {

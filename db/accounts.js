@@ -11,15 +11,16 @@ let pool = null;
 function _setPool(p) { pool = p; }
 
 function toAccount(row, token) {
-  return {
+  const acc = {
     userId:     row.user_id,
     username:   row.username,
     isAdmin:    row.is_admin,
-    token:      token ?? row.login_token,
     color:      row.color,
     theme:      normalizeThemeMode(row.theme),
     statusText: row.status_text,
   };
+  if (token !== undefined) acc.token = token;
+  return acc;
 }
 
 async function signup({ userId, username, password, ip }) {
@@ -47,14 +48,14 @@ async function signup({ userId, username, password, ip }) {
   await pool.query(
     `INSERT INTO accounts (user_id, username, password_hash, login_token, registration_ip, theme)
      VALUES ($1, $2, $3, $4, $5, $6)`,
-    [userId, username, hash, token, ip ?? null, THEME_SYSTEM]
+    [userId, username.trim(), hash, token, ip ?? null, THEME_SYSTEM]
   );
 
   return {
     success: true,
     account: {
       userId,
-      username,
+      username:   username.trim(),
       isAdmin:    false,
       token,
       color:      '#000000',
@@ -75,7 +76,7 @@ async function login({ userId, password }) {
 
   const token = crypto.randomBytes(32).toString('hex');
   await pool.query(
-    'UPDATE accounts SET login_token = $1, last_login = NOW() WHERE user_id = $2',
+    'UPDATE accounts SET login_token = $1 WHERE user_id = $2',
     [token, userId]
   );
   return { success: true, account: toAccount(row, token) };
@@ -89,7 +90,6 @@ async function loginWithToken(token) {
     return { success: false, error: 'セッションが無効です' };
 
   const row = res.rows[0];
-  await pool.query('UPDATE accounts SET last_login = NOW() WHERE user_id = $1', [row.user_id]);
   return { success: true, account: toAccount(row, token) };
 }
 
@@ -132,8 +132,16 @@ async function getAdminUserIds() {
   return res.rows.map(r => r.user_id);
 }
 
+async function getUsernamesByIds(userIds = []) {
+  const ids = [...new Set(userIds.filter(Boolean))];
+  if (ids.length === 0) return {};
+  const res = await pool.query('SELECT user_id, username FROM accounts WHERE user_id = ANY($1)', [ids]);
+  return Object.fromEntries(res.rows.map(r => [r.user_id, r.username]));
+}
+
 module.exports = {
   _setPool,
   signup, login, loginWithToken, logout,
   updateProfile, setAdminFlag, getAdminUserIds,
+  getUsernamesByIds,
 };

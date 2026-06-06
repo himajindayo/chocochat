@@ -10,13 +10,15 @@ const App = {
   showSys: true,
   isAtBottom: true,
   sending: false,
-  themeMode: 'system',
   typingMap: new Map(),
   typingTimer: null,
   userStatuses: new Map(),
   onlineUsers: [],
   onlineCount: 0,
   onlineSignature: '',
+  intentionalDisconnect: false,
+  commandCatalog: [],
+  messageIndex: new Map(),
 };
 
 const _domCache = new Map();
@@ -80,19 +82,16 @@ function formatReplyPreview(senderUsername, senderId, message, limit = 60) {
 }
 
 function normalizeOnlineUser(u) {
-  if (u && typeof u === 'object') {
-    const userId = String(u.userId || '').trim();
-    if (!userId) return null;
-    return { userId, username: String(u.username || userId).trim() || userId };
-  }
-  const userId = String(u || '').trim();
-  return userId ? { userId, username: userId } : null;
+  const userId = String(u?.userId || '').trim();
+  if (!userId) return null;
+  const username = String(u?.username || userId).trim();
+  return { userId, username: username || userId };
 }
 
 function updateUserList(users, count, statuses) {
   const list = Array.isArray(users) ? users : [];
   const normalized = list.map(normalizeOnlineUser).filter(Boolean);
-  const onlineCount = typeof count === 'number' ? count : normalized.length;
+  const onlineCount = Number.isFinite(Number(count)) ? Number(count) : normalized.length;
   const statusMap = statuses && typeof statuses === 'object' ? statuses : {};
   const statusEntries = Object.entries(statusMap).sort(([a], [b]) => a.localeCompare(b));
   const nextSignature = `${onlineCount}|${normalized.map(u => `${u.userId}:${u.username}`).join(',')}|${statusEntries.map(([k, v]) => `${k}:${v}`).join(',')}`;
@@ -127,4 +126,23 @@ function updateTypingDisplay() {
     .filter(([uid]) => uid !== App.myUserId)
     .map(([, uname]) => uname);
   setTextById('typing', list.length ? `${list.join(', ')} が入力中…` : '');
+}
+
+function rememberMessage(message) {
+  if (!message || !message.id) return;
+  App.messageIndex.set(message.id, {
+    id: message.id,
+    senderId: message.senderId || '',
+    senderUsername: message.senderUsername || '',
+    message: message.message || '',
+  });
+}
+
+function forgetMessage(messageId) {
+  if (!messageId) return;
+  App.messageIndex.delete(messageId);
+}
+
+function clearMessageIndex() {
+  App.messageIndex.clear();
 }

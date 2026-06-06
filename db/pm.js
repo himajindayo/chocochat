@@ -9,48 +9,51 @@ function toPm(row) {
     fromId:    row.from_id,
     toId:      row.to_id,
     message:   row.message,
-    color:     row.color,
     timestamp: row.timestamp,
   };
 }
 
-async function addPrivateMessage({ id, fromId, toId, message, color, timestamp }) {
+async function addPrivateMessage({ id, fromId, toId, message, timestamp }) {
   await pool.query(`
-    INSERT INTO private_messages (id, from_id, to_id, message, color, timestamp)
-    VALUES ($1, $2, $3, $4, $5, $6)
+    INSERT INTO private_messages (id, from_id, to_id, message, timestamp)
+    VALUES ($1, $2, $3, $4, $5)
     ON CONFLICT (id) DO NOTHING
-  `, [id, fromId, toId, message, color || '#000000', timestamp]);
+  `, [id, fromId, toId, message, timestamp]);
 }
 
 async function getPrivateMessagesForUser(userId, limit = 200) {
   const res = await pool.query(`
     SELECT * FROM private_messages
     WHERE from_id = $1 OR to_id = $1
-    ORDER BY timestamp ASC LIMIT $2
+    ORDER BY timestamp DESC LIMIT $2
   `, [userId, limit]);
-  return res.rows.map(toPm);
+  return res.rows.reverse().map(toPm);
 }
 
 async function getAllPrivateMessages(limit = 200) {
   const res = await pool.query(
-    'SELECT * FROM private_messages ORDER BY timestamp ASC LIMIT $1', [limit]
+    'SELECT * FROM private_messages ORDER BY timestamp DESC LIMIT $1', [limit]
   );
-  return res.rows.map(toPm);
+  return res.rows.reverse().map(toPm);
 }
 
 async function deletePrivateMessage(id, requesterId, isAdmin = false) {
   const condition = isAdmin ? 'id = $1' : 'id = $1 AND (from_id = $2 OR to_id = $2)';
   const params    = isAdmin ? [id] : [id, requesterId];
   const res = await pool.query(
-    `DELETE FROM private_messages WHERE ${condition} RETURNING id`, params
+    `DELETE FROM private_messages WHERE ${condition} RETURNING *`, params
   );
   if (res.rows.length === 0)
     return { success: false, error: '削除権限がないか、メッセージが見つかりません' };
-  return { success: true };
+  return { success: true, pm: toPm(res.rows[0]) };
+}
+
+async function deleteAllPrivateMessages() {
+  await pool.query('DELETE FROM private_messages');
 }
 
 module.exports = {
   _setPool,
   addPrivateMessage, getPrivateMessagesForUser, getAllPrivateMessages,
-  deletePrivateMessage,
+  deletePrivateMessage, deleteAllPrivateMessages,
 };
