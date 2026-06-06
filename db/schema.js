@@ -15,9 +15,7 @@ async function createTables(pool) {
       color           VARCHAR(20)  NOT NULL DEFAULT '#000000',
       theme           VARCHAR(20)  NOT NULL DEFAULT '${THEME_SYSTEM}',
       status_text     VARCHAR(100) NOT NULL DEFAULT '',
-      registration_ip VARCHAR(45),
-      created_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
-      last_login      TIMESTAMPTZ
+      registration_ip VARCHAR(45)
     )
   `);
   await pool.query(`
@@ -29,9 +27,7 @@ async function createTables(pool) {
     CREATE TABLE IF NOT EXISTS bans (
       user_id      VARCHAR(30)  PRIMARY KEY,
       banned_ip    VARCHAR(45),
-      banned_by_id VARCHAR(30)  NOT NULL,
-      reason       VARCHAR(255) NOT NULL DEFAULT '',
-      banned_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+      banned_by_id VARCHAR(30)  NOT NULL
     )
   `);
   await pool.query(`
@@ -42,8 +38,7 @@ async function createTables(pool) {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS shadow_bans (
       user_id      VARCHAR(30) PRIMARY KEY,
-      banned_by_id VARCHAR(30) NOT NULL,
-      banned_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      banned_by_id VARCHAR(30) NOT NULL DEFAULT '__system__'
     )
   `);
 
@@ -51,7 +46,7 @@ async function createTables(pool) {
     CREATE TABLE IF NOT EXISTS mutes (
       user_id      VARCHAR(30) PRIMARY KEY,
       until        TIMESTAMPTZ NOT NULL,
-      muted_by_id  VARCHAR(30) NOT NULL
+      muted_by_id  VARCHAR(30) NOT NULL DEFAULT '__system__'
     )
   `);
 
@@ -65,31 +60,23 @@ async function createTables(pool) {
       sender_status       VARCHAR(100) NOT NULL DEFAULT '',
       timestamp           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       reply_to_id         VARCHAR(36),
-      reply_to_sender_id  VARCHAR(30),
-      reply_to_username   VARCHAR(50),
-      reply_to_message    TEXT,
-      edited              BOOLEAN     NOT NULL DEFAULT FALSE,
-      edited_at           TIMESTAMPTZ
+      edited              BOOLEAN     NOT NULL DEFAULT FALSE
     )
   `);
+
   await pool.query(`
     CREATE INDEX IF NOT EXISTS idx_messages_ts ON messages(timestamp DESC)
   `);
-  await pool.query(`
-    ALTER TABLE messages
-    ADD COLUMN IF NOT EXISTS sender_status VARCHAR(100) NOT NULL DEFAULT ''
-  `);
-
   await pool.query(`
     CREATE TABLE IF NOT EXISTS private_messages (
       id        VARCHAR(36) PRIMARY KEY,
       from_id   VARCHAR(30) NOT NULL,
       to_id     VARCHAR(30) NOT NULL,
       message   TEXT        NOT NULL,
-      color     VARCHAR(20) NOT NULL DEFAULT '#000000',
       timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
+
   await pool.query(`
     CREATE INDEX IF NOT EXISTS idx_pm_ts ON private_messages(timestamp DESC)
   `);

@@ -8,14 +8,11 @@ const pm = require('./pm');
 const moderation = require('./moderation');
 
 let pool = null;
-let useDatabase = false;
-let dbError = null;
 
 async function initDatabase() {
   const url = process.env.DATABASE_URL;
   if (!url) {
-    dbError = { message: 'DATABASE_URL が未設定です', solution: 'DATABASE_URL を設定してください' };
-    return false;
+    throw new Error('DATABASE_URL が未設定です');
   }
   try {
     pool = new Pool({
@@ -30,15 +27,11 @@ async function initDatabase() {
     [accounts, messages, pm, moderation].forEach(m => m._setPool(pool));
     await schema.createTables(pool);
     await schema.seedAdmin(pool);
-    useDatabase = true;
-    dbError = null;
     return true;
   } catch (err) {
     console.error('[DB] 接続失敗:', err.message);
-    dbError = { message: 'DB 接続エラー', detail: err.message };
     pool = null;
-    useDatabase = false;
-    return false;
+    throw err;
   }
 }
 
@@ -47,15 +40,27 @@ async function closeDatabase() {
     await pool.end().catch(() => {});
     pool = null;
   }
-  useDatabase = false;
+}
+
+async function deleteAllContent() {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query('DELETE FROM messages');
+    await client.query('DELETE FROM private_messages');
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw err;
+  } finally {
+    client.release();
+  }
 }
 
 module.exports = {
   initDatabase,
   closeDatabase,
-  isUsingDatabase: () => useDatabase,
-  getDbError: () => dbError,
-
+  deleteAllContent,
   // accounts
   signup: accounts.signup,
   login: accounts.login,
@@ -63,6 +68,7 @@ module.exports = {
   logout: accounts.logout,
   updateProfile: accounts.updateProfile,
   getAdminUserIds: accounts.getAdminUserIds,
+  getUsernamesByIds: accounts.getUsernamesByIds,
   setAdminFlag: accounts.setAdminFlag,
 
   // messages
@@ -70,7 +76,6 @@ module.exports = {
   addMessage: messages.addMessage,
   updateMessage: messages.updateMessage,
   deleteMessage: messages.deleteMessage,
-  deleteAllMessages: messages.deleteAllMessages,
 
   // private messages
   addPrivateMessage: pm.addPrivateMessage,
@@ -86,7 +91,7 @@ module.exports = {
   getBannedUsers: moderation.getBannedUsers,
   addShadowBan: moderation.addShadowBan,
   removeShadowBan: moderation.removeShadowBan,
-  getShadowBannedIds: moderation.getShadowBannedIds,
+  getShadowBans: moderation.getShadowBans,
   saveMute: moderation.saveMute,
   clearMute: moderation.clearMute,
   getActiveMutes: moderation.getActiveMutes,

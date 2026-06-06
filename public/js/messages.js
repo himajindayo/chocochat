@@ -1,19 +1,48 @@
 'use strict';
 
 function buildReplyPreviewHtml(replyTo) {
-  if (!replyTo) return '';
-  return `<div class="reply-prev" data-reply-id="${esc(replyTo.id || '')}">↩ <b>${esc(replyTo.senderUsername || '')}</b>(${esc(replyTo.senderId || '')}): ${esc((replyTo.message || '').slice(0, 80))}</div>`;
+  if (!replyTo?.id) return '';
+  const ref = App.messageIndex.get(replyTo.id);
+  if (!ref) {
+    return `<div class="reply-prev" data-reply-id="${esc(replyTo.id)}">↩ 元メッセージは利用できません</div>`;
+  }
+  const preview = formatReplyPreview(ref.senderUsername, ref.senderId, ref.message, 80);
+  return `<div class="reply-prev" data-reply-id="${esc(replyTo.id)}">${esc(preview)}</div>`;
 }
 
-function appendToChat(el) {
+function settleChatScroll(wasAtBottom) {
   const box = byId('chat-box');
-  const wasAtBottom = App.isAtBottom;
-  box.appendChild(el);
+  if (!box) return;
   if (wasAtBottom) {
     box.scrollTop = box.scrollHeight;
   } else {
     byId('new-msg-notice')?.classList.remove('hidden');
   }
+}
+
+function appendToChat(el) {
+  const box = byId('chat-box');
+  if (!box) return;
+  const wasAtBottom = App.isAtBottom;
+  box.appendChild(el);
+  settleChatScroll(wasAtBottom);
+}
+
+function insertTimelineItem(el) {
+  const box = byId('chat-box');
+  const ts = Number(el.dataset.ts || 0);
+  if (!box || !ts) return appendToChat(el);
+
+  const before = [...box.children].find(child => {
+    const childTs = Number(child.dataset?.ts || 0);
+    return childTs && childTs > ts;
+  });
+
+  const wasAtBottom = App.isAtBottom;
+  if (before) box.insertBefore(el, before);
+  else box.appendChild(el);
+
+  settleChatScroll(wasAtBottom);
 }
 
 function addMsg(m) {
@@ -22,7 +51,7 @@ function addMsg(m) {
   wrap.dataset.msgid = m.id || '';
   wrap.dataset.senderId = m.senderId || '';
   wrap.dataset.senderUsername = m.senderUsername || '';
-  wrap.dataset.msgtext = (m.message || '').slice(0, 80);
+  wrap.dataset.ts = String(+new Date(m.timestamp || Date.now()));
 
   const isMine = m.senderId === App.myUserId;
   const replyHtml = buildReplyPreviewHtml(m.replyTo);
@@ -42,74 +71,108 @@ function addMsg(m) {
 <div class="msg-body">${bodyHtml}</div>
 <div class="msg-actions">${repBtn}${editBtn}${delBtn}</div>`;
 
-  wrap.querySelector('.msg-uname').style.color = safeColor(m.color);
-  appendToChat(wrap);
+  rememberMessage(m);
+  const unameEl = wrap.querySelector('.msg-uname');
+  if (unameEl) unameEl.style.color = safeColor(m.color);
+  insertTimelineItem(wrap);
 }
 
 function refreshReplyPreviews(message) {
   if (!message?.id) return;
   const selector = `.reply-prev[data-reply-id="${CSS.escape(message.id)}"]`;
-  document.querySelectorAll(selector).forEach(preview => {
-    preview.innerHTML = `↩ <b>${esc(message.senderUsername || '')}</b>(${esc(message.senderId || '')}): ${esc((message.message || '').slice(0, 80))}`;
+  const ref = App.messageIndex.get(message.id) || {
+    senderUsername: message.senderUsername || '',
+    senderId: message.senderId || '',
+    message: message.message || '',
+  };
+  const preview = formatReplyPreview(ref.senderUsername, ref.senderId, ref.message, 80);
+  document.querySelectorAll(selector).forEach(previewEl => {
+    previewEl.textContent = preview;
   });
 }
 
-function addSys(text) {
-  if (!App.showSys) return;
+function addSys(text, force = false) {
+  if (!force && !App.showSys) return;
   const el = document.createElement('div');
   el.className = 'sys-msg';
   el.textContent = text;
   appendToChat(el);
 }
 
-function addPm(pm) {
+function canDeletePrivateMessage(pm) {
+  if (App.isAdmin) return true;
+  return pm.fromId === App.myUserId || pm.toId === App.myUserId;
+}
+
+function buildPmWrap(pm, { label, className }) {
   const wrap = document.createElement('div');
-  wrap.className = 'pm-wrap';
-  wrap.dataset.pmid = pm.id;
-  const dir = pm.fromId === App.myUserId ? `→ ${esc(pm.toId)}` : `← ${esc(pm.fromId)}`;
-  wrap.innerHTML =
-    `<div class="pm-label">🔒 PM (${dir})</div>` +
-    `<div class="msg-body">${renderMessageBody(pm.message)}</div>` +
-    `<div class="msg-actions"><button class="act" data-action="dpm">削除</button></div>`;
-  appendToChat(wrap);
+  wrap.className = ['msg', 'pm-wrap', className].filter(Boolean).join(' ');
+  wrap.dataset.pmid = pm.id || '';
+  wrap.dataset.ts = String(+new Date(pm.timestamp || Date.now()));
+
+  const fromName = esc(pm.fromUsername || pm.fromId || '');
+  const fromId = esc(pm.fromId || '');
+  const toName = esc(pm.toUsername || pm.toId || '');
+  const toId = esc(pm.toId || '');
+  const delBtn = canDeletePrivateMessage(pm) ? '<button class="act" data-action="delete">削除</button>' : '';
+
+  wrap.innerHTML = `
+    <div class="msg-head pm-head">
+      <span class="msg-status pm-mon-label">${label}</span>
+      <span class="msg-uname">${fromName}</span>
+      <span class="msg-uid">(${fromId})</span>
+      <span class="pm-arrow" aria-hidden="true">→</span>
+      <span class="msg-uname">${toName}</span>
+      <span class="msg-uid">(${toId})</span>
+      <span class="msg-time">${fmtTime(pm.timestamp)}</span>
+    </div>
+    <div class="msg-body">${renderMessageBody(pm.message || '')}</div>
+    ${delBtn ? `<div class="msg-actions">${delBtn}</div>` : ''}`;
+  return wrap;
+}
+
+function addPm(pm) {
+  insertTimelineItem(buildPmWrap(pm, { label: '🔒 PM' }));
 }
 
 function addPmMonitor(pm) {
-  const wrap = document.createElement('div');
-  wrap.className = 'pm-monitor';
-  wrap.innerHTML =
-    `<div class="pm-mon-label">👁 PM: ${esc(pm.fromId)} → ${esc(pm.toId)}</div>` +
-    `<div class="msg-body">${renderMessageBody(pm.message)}</div>` +
-    `<div class="msg-time">${fmtTime(pm.timestamp)}</div>`;
-  appendToChat(wrap);
+  insertTimelineItem(buildPmWrap(pm, { label: '👁️ PM監視', className: 'pm-monitor' }));
 }
 
 byId('chat-box').addEventListener('click', e => {
   const btn = e.target.closest('[data-action]');
   if (!btn) return;
   const action = btn.dataset.action;
-  const wrap = btn.closest('[data-msgid]');
-  const pmWrap = btn.closest('[data-pmid]');
+  const wrap = btn.closest('[data-msgid], [data-pmid]');
+  if (!wrap) return;
 
-  if (action === 'reply' && wrap) {
-    setReply(wrap.dataset.msgid, wrap.dataset.senderId || '', wrap.dataset.senderUsername || '', wrap.dataset.msgtext || '');
+  if (action === 'reply' && wrap.dataset.msgid) {
+    const source = App.messageIndex.get(wrap.dataset.msgid);
+    setReply(
+      wrap.dataset.msgid,
+      wrap.dataset.senderId || '',
+      wrap.dataset.senderUsername || '',
+      source?.message || ''
+    );
   }
-  if (action === 'edit' && wrap) {
+  if (action === 'edit' && wrap.dataset.msgid) {
     const body = wrap.querySelector('.msg-body');
     App.editingId = wrap.dataset.msgid;
     setValueById('edit-input', body ? body.innerText : '');
     byId('edit-modal').classList.remove('hidden');
   }
-  if (action === 'delete' && wrap) {
+  if (action === 'delete') {
     if (!confirm('削除しますか？')) return;
+    if (wrap.dataset.pmid) {
+      socket.emit('deletePrivateMessage', { id: wrap.dataset.pmid }, res => {
+        if (res?.success) wrap.remove();
+        else alert(res?.error || '削除に失敗しました');
+      });
+      return;
+    }
     socket.emit('deleteMessage', { id: wrap.dataset.msgid }, res => {
-      if (!res?.success) alert(res?.error || '削除に失敗しました');
-    });
-  }
-  if (action === 'dpm' && pmWrap) {
-    if (!confirm('削除しますか？')) return;
-    socket.emit('deletePrivateMessage', { id: pmWrap.dataset.pmid }, res => {
-      if (!res?.success) alert(res?.error || '削除に失敗しました');
+      if (res?.success) forgetMessage(wrap.dataset.msgid);
+      else alert(res?.error || '削除に失敗しました');
     });
   }
 });
@@ -134,12 +197,18 @@ byId('cancel-edit').onclick = () => {
 
 byId('chat-box').addEventListener('scroll', () => {
   const box = byId('chat-box');
+  if (!box) return;
   App.isAtBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 100;
-  if (App.isAtBottom) byId('new-msg-notice').classList.add('hidden');
+  if (App.isAtBottom) byId('new-msg-notice')?.classList.add('hidden');
 });
-byId('new-msg-notice').onclick = () => {
-  const box = byId('chat-box');
-  box.scrollTop = box.scrollHeight;
-  App.isAtBottom = true;
-  byId('new-msg-notice').classList.add('hidden');
-};
+
+const newMsgNotice = byId('new-msg-notice');
+if (newMsgNotice) {
+  newMsgNotice.onclick = () => {
+    const box = byId('chat-box');
+    if (!box) return;
+    box.scrollTop = box.scrollHeight;
+    App.isAtBottom = true;
+    newMsgNotice.classList.add('hidden');
+  };
+}
