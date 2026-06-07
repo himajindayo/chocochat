@@ -2,13 +2,30 @@
 
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
-const { THEME_SYSTEM, SUPER_ADMIN_ID } = require('../lib/constants');
-const { normalizeThemeMode }           = require('../lib/theme');
+const { THEME_SYSTEM, SUPER_ADMIN_ID, MAX_ACCOUNTS_PER_IP } = require('../lib/constants');
+const { normalizeThemeMode } = require('../lib/theme');
+const { hashNormalizedIp } = require('../lib/ip');
 
 const SALT_ROUNDS = 10;
 
 let pool = null;
 function _setPool(p) { pool = p; }
+
+async function reserveSignupSlot(client, ipHash, maxAccountsPerIp) {
+  if (!ipHash) return true;
+
+  const res = await client.query(
+    `INSERT INTO registration_ip_accounts (ip, account_count)
+     VALUES ($1, 1)
+     ON CONFLICT (ip) DO UPDATE
+       SET account_count = registration_ip_accounts.account_count + 1
+       WHERE registration_ip_accounts.account_count < $2
+     RETURNING account_count`,
+    [ipHash, maxAccountsPerIp]
+  );
+
+  return res.rowCount > 0;
+}
 
 function toAccount(row, token) {
   const acc = {
@@ -27,42 +44,61 @@ async function signup({ userId, username, password, ip }) {
   if (userId === SUPER_ADMIN_ID)
     return { success: false, error: 'このユーザーIDは使用できません' };
 
-  const dup = await pool.query(
-    'SELECT user_id FROM accounts WHERE user_id = $1', [userId]
-  );
-  if (dup.rows.length > 0)
-    return { success: false, error: 'このユーザーIDはすでに使用されています' };
+  const trimmedUsername = username.trim();
+  const ipHash = hashNormalizedIp(ip);
+  const client = await pool.connect();
 
-  if (ip) {
-    const cnt = await pool.query(
-      'SELECT COUNT(*) FROM accounts WHERE registration_ip = $1 AND user_id != $2',
-      [ip, SUPER_ADMIN_ID]
+  try {
+    await client.query('BEGIN');
+
+    const dup = await client.query(
+      'SELECT 1 FROM accounts WHERE user_id = $1', [userId]
     );
-    if (parseInt(cnt.rows[0].count, 10) >= 3)
-      return { success: false, error: 'このIPアドレスからはこれ以上アカウントを作成できません' };
+    if (dup.rows.length > 0) {
+      await client.query('ROLLBACK');
+      return { success: false, error: 'このユーザーIDはすでに使用されています' };
+    }
+
+    if (ipHash) {
+      const reserved = await reserveSignupSlot(client, ipHash, MAX_ACCOUNTS_PER_IP);
+      if (!reserved) {
+        await client.query('ROLLBACK');
+        return { success: false, error: 'このIPアドレスからはこれ以上アカウントを作成できません' };
+      }
+    }
+
+    const hash  = await bcrypt.hash(password, SALT_ROUNDS);
+    const token = crypto.randomBytes(32).toString('hex');
+
+    await client.query(
+      `INSERT INTO accounts (user_id, username, password_hash, login_token, theme)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [userId, trimmedUsername, hash, token, THEME_SYSTEM]
+    );
+
+    await client.query('COMMIT');
+
+    return {
+      success: true,
+      account: {
+        userId,
+        username:   trimmedUsername,
+        isAdmin:    false,
+        token,
+        color:      '#000000',
+        theme:      THEME_SYSTEM,
+        statusText: '',
+      },
+    };
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    if (err?.code === '23505') {
+      return { success: false, error: 'このユーザーIDはすでに使用されています' };
+    }
+    throw err;
+  } finally {
+    client.release();
   }
-
-  const hash  = await bcrypt.hash(password, SALT_ROUNDS);
-  const token = crypto.randomBytes(32).toString('hex');
-
-  await pool.query(
-    `INSERT INTO accounts (user_id, username, password_hash, login_token, registration_ip, theme)
-     VALUES ($1, $2, $3, $4, $5, $6)`,
-    [userId, username.trim(), hash, token, ip ?? null, THEME_SYSTEM]
-  );
-
-  return {
-    success: true,
-    account: {
-      userId,
-      username:   username.trim(),
-      isAdmin:    false,
-      token,
-      color:      '#000000',
-      theme:      THEME_SYSTEM,
-      statusText: '',
-    },
-  };
 }
 
 async function login({ userId, password }) {

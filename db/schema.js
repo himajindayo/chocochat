@@ -14,13 +14,19 @@ async function createTables(pool) {
       login_token     VARCHAR(255),
       color           VARCHAR(20)  NOT NULL DEFAULT '#000000',
       theme           VARCHAR(20)  NOT NULL DEFAULT '${THEME_SYSTEM}',
-      status_text     VARCHAR(100) NOT NULL DEFAULT '',
-      registration_ip VARCHAR(45)
+      status_text     VARCHAR(100) NOT NULL DEFAULT ''
     )
   `);
   await pool.query(`
     CREATE INDEX IF NOT EXISTS idx_accounts_token
     ON accounts(login_token) WHERE login_token IS NOT NULL
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS registration_ip_accounts (
+      ip            CHAR(64) PRIMARY KEY,
+      account_count INTEGER NOT NULL DEFAULT 0 CHECK (account_count >= 0)
+    )
   `);
 
   await pool.query(`
@@ -95,8 +101,8 @@ async function seedAdmin(pool) {
   const hash  = await bcrypt.hash(adminPass, 10);
   const token = crypto.randomBytes(32).toString('hex');
   await pool.query(
-    `INSERT INTO accounts (user_id, username, password_hash, is_admin, login_token, registration_ip, theme)
-     VALUES ($1, $2, $3, TRUE, $4, 'seed', $5)`,
+    `INSERT INTO accounts (user_id, username, password_hash, is_admin, login_token, theme)
+     VALUES ($1, $2, $3, TRUE, $4, $5)`,
     [SUPER_ADMIN_ID, '管理者', hash, token, THEME_SYSTEM]
   );
 }
