@@ -1,12 +1,12 @@
 'use strict';
 
-const { normalizeIp } = require('../lib/ip');
+const { hashNormalizedIp } = require('../lib/ip');
 
 let pool = null;
 function _setPool(p) { pool = p; }
 
-async function addBan(userId, bannedById, ip) {
-  const normIp = ip ? normalizeIp(ip) : null;
+async function addBan(userId, bannedById, bannedIpHash) {
+  const normIp = bannedIpHash || null;
   await pool.query(
     `INSERT INTO bans (user_id, banned_ip, banned_by_id)
      VALUES ($1, $2, $3)
@@ -31,7 +31,7 @@ async function isBannedUser(userId) {
 async function isBannedIp(ip) {
   if (!ip) return false;
   const res = await pool.query(
-    'SELECT 1 FROM bans WHERE banned_ip=$1', [normalizeIp(ip)]
+    'SELECT 1 FROM bans WHERE banned_ip=$1', [hashNormalizedIp(ip)]
   );
   return res.rows.length > 0;
 }

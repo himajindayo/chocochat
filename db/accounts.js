@@ -1,10 +1,11 @@
 'use strict';
 
-const bcrypt = require('bcrypt');
 const crypto = require('crypto');
+const bcrypt = require('bcrypt');
 const { THEME_SYSTEM, SUPER_ADMIN_ID, MAX_ACCOUNTS_PER_IP } = require('../lib/constants');
 const { normalizeThemeMode } = require('../lib/theme');
 const { hashNormalizedIp } = require('../lib/ip');
+const { sha256Hex } = require('../lib/hash');
 
 const SALT_ROUNDS = 10;
 
@@ -69,11 +70,12 @@ async function signup({ userId, username, password, ip }) {
 
     const hash  = await bcrypt.hash(password, SALT_ROUNDS);
     const token = crypto.randomBytes(32).toString('hex');
+    const tokenHash = sha256Hex(token);
 
     await client.query(
       `INSERT INTO accounts (user_id, username, password_hash, login_token, theme)
        VALUES ($1, $2, $3, $4, $5)`,
-      [userId, trimmedUsername, hash, token, THEME_SYSTEM]
+      [userId, trimmedUsername, hash, tokenHash, THEME_SYSTEM]
     );
 
     await client.query('COMMIT');
@@ -113,14 +115,14 @@ async function login({ userId, password }) {
   const token = crypto.randomBytes(32).toString('hex');
   await pool.query(
     'UPDATE accounts SET login_token = $1 WHERE user_id = $2',
-    [token, userId]
+    [sha256Hex(token), userId]
   );
   return { success: true, account: toAccount(row, token) };
 }
 
 async function loginWithToken(token) {
   const res = await pool.query(
-    'SELECT * FROM accounts WHERE login_token = $1', [token]
+    'SELECT * FROM accounts WHERE login_token = $1', [sha256Hex(token)]
   );
   if (res.rows.length === 0)
     return { success: false, error: 'セッションが無効です' };
@@ -130,7 +132,7 @@ async function loginWithToken(token) {
 }
 
 async function logout(token) {
-  await pool.query('UPDATE accounts SET login_token = NULL WHERE login_token = $1', [token]);
+  await pool.query('UPDATE accounts SET login_token = NULL WHERE login_token = $1', [sha256Hex(token)]);
 }
 
 async function updateProfile(userId, { color, theme, statusText, username } = {}) {

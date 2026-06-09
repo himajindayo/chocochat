@@ -1,7 +1,6 @@
 'use strict';
 
 const bcrypt = require('bcrypt');
-const crypto = require('crypto');
 const { THEME_SYSTEM, SUPER_ADMIN_ID } = require('../lib/constants');
 
 async function createTables(pool) {
@@ -11,7 +10,7 @@ async function createTables(pool) {
       username        VARCHAR(50)  NOT NULL,
       password_hash   VARCHAR(255) NOT NULL,
       is_admin        BOOLEAN      NOT NULL DEFAULT FALSE,
-      login_token     VARCHAR(255),
+      login_token     VARCHAR(64),
       color           VARCHAR(20)  NOT NULL DEFAULT '#000000',
       theme           VARCHAR(20)  NOT NULL DEFAULT '${THEME_SYSTEM}',
       status_text     VARCHAR(100) NOT NULL DEFAULT ''
@@ -32,7 +31,7 @@ async function createTables(pool) {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS bans (
       user_id      VARCHAR(30)  PRIMARY KEY,
-      banned_ip    VARCHAR(45),
+      banned_ip    VARCHAR(64),
       banned_by_id VARCHAR(30)  NOT NULL
     )
   `);
@@ -99,11 +98,10 @@ async function seedAdmin(pool) {
   if (exists.rows.length > 0) return;
 
   const hash  = await bcrypt.hash(adminPass, 10);
-  const token = crypto.randomBytes(32).toString('hex');
   await pool.query(
-    `INSERT INTO accounts (user_id, username, password_hash, is_admin, login_token, theme)
-     VALUES ($1, $2, $3, TRUE, $4, $5)`,
-    [SUPER_ADMIN_ID, '管理者', hash, token, THEME_SYSTEM]
+    `INSERT INTO accounts (user_id, username, password_hash, is_admin, theme)
+     VALUES ($1, $2, $3, TRUE, $4)`,
+    [SUPER_ADMIN_ID, '管理者', hash, THEME_SYSTEM]
   );
 }
 
