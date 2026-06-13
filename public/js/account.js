@@ -1,0 +1,85 @@
+'use strict';
+function setProfileSaveStatus(message, isError = false) {
+    const el = byId('profile-save-status');
+    if (!el)
+        return;
+    el.textContent = message || '';
+    el.classList.toggle('error', !!isError);
+    el.classList.toggle('success', !!message && !isError);
+}
+function saveProfile() {
+    const btn = byId('save-profile');
+    const uname = byId('p-uname').value.trim();
+    if (!uname) {
+        setProfileSaveStatus('ユーザー名を入力してください', true);
+        return;
+    }
+    if (uname.includes('管理者')) {
+        setProfileSaveStatus('ユーザー名に「管理者」は含められません', true);
+        return;
+    }
+    const updates = {
+        color: byId('p-color').value,
+        theme: byId('p-theme').value,
+        statusText: byId('p-status').value,
+        username: uname,
+    };
+    btn.disabled = true;
+    const originalText = btn.textContent;
+    btn.textContent = '保存中...';
+    setProfileSaveStatus('保存しています...');
+    socket.emit('updateAccountProfile', updates, res => {
+        btn.disabled = false;
+        btn.textContent = originalText;
+        if (res?.success) {
+            if (res.account.username) {
+                App.myUsername = res.account.username;
+                setTextById('disp-uname', `(${App.myUsername})`);
+            }
+            setValueById('p-theme', res.account.theme || 'system');
+            applyTheme(res.account.theme || 'system');
+            setProfileSaveStatus('保存しました');
+            setTimeout(() => setProfileSaveStatus(''), 1800);
+        }
+        else {
+            const message = res?.error || '更新に失敗しました';
+            setProfileSaveStatus(message, true);
+            alert(message);
+        }
+    });
+}
+function logout() {
+    if (!confirm('ログアウトしますか？'))
+        return;
+    App.intentionalDisconnect = true;
+    socket.emit('logout', () => {
+        localStorage.removeItem('token');
+        location.reload();
+    });
+}
+function deleteAccount() {
+    if (App.isSuperAdmin) {
+        alert('管理者アカウントは削除できません');
+        return;
+    }
+    const ok = confirm('本当にアカウントを削除しますか？\nこの操作は元に戻せません。');
+    if (!ok)
+        return;
+    const btn = byId('delete-account-btn');
+    if (btn)
+        btn.disabled = true;
+    socket.emit('deleteAccount', res => {
+        if (res?.success) {
+            App.intentionalDisconnect = true;
+            localStorage.removeItem('token');
+            location.reload();
+            return;
+        }
+        if (btn)
+            btn.disabled = !!App.isSuperAdmin;
+        alert(res?.error || 'アカウント削除に失敗しました');
+    });
+}
+byId('save-profile').onclick = saveProfile;
+byId('logout-btn').onclick = logout;
+byId('delete-account-btn')?.addEventListener('click', deleteAccount);
