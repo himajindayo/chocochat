@@ -344,13 +344,13 @@ a:hover {
 }
 
 .uid-label {
-  font-weight: bold;
-  font-family: monospace;
-  color: var(--accent);
+  color: var(--muted);
 }
 
 .uname-label {
-  color: var(--muted);
+  font-weight: bold;
+  font-family: monospace;
+  color: var(--accent);
 }
 
 .admin-badge {

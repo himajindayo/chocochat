@@ -47,30 +47,12 @@ function setChatIdentity(account) {
     if (account.statusText)
         App.userStatuses.set(account.userId, account.statusText);
 }
-function setDangerZoneState(account) {
-    const btn = byId('delete-account-btn');
-    const note = byId('danger-zone-note');
-    if (!btn && !note)
-        return;
-    const locked = !!account?.isSuperAdmin;
-    if (btn) {
-        btn.disabled = locked;
-        btn.title = locked ? '管理者アカウントは削除できません' : '';
-        btn.setAttribute('aria-disabled', locked ? 'true' : 'false');
-    }
-    if (note) {
-        note.textContent = locked
-            ? '管理者アカウントは削除できません。'
-            : 'このアカウントを削除すると、ログイン情報とプロフィールが失われます。';
-    }
-}
 
 function syncChatChrome(account) {
     byId('auth-section').classList.add('hidden');
     byId('chat-section').classList.remove('hidden');
     byId('admin-badge').classList.toggle('hidden', !(App.isAdmin || App.isSuperAdmin));
     applyTheme(account.theme || 'system');
-    setDangerZoneState(account);
     renderCommandGrid();
 }
 function toTimelineEntry(kind, payload) {
