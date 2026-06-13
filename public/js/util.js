@@ -108,10 +108,29 @@ function syncOnlineUser(userId, username) {
     return changed;
 }
 function updateTypingDisplay() {
-    const list = [...App.typingMap.entries()]
+    const typingUsers = [...App.typingMap.entries()]
         .filter(([uid]) => uid !== App.myUserId)
-        .map(([, uname]) => uname);
-    setTextById('typing', list.length ? `${list.join(', ')} が入力中…` : '');
+        .map(([userId, username]) => ({
+            userId: String(userId ?? '').trim(),
+            username: String(username ?? '').trim(),
+        }))
+        .filter(user => user.userId || user.username);
+
+    if (!typingUsers.length) {
+        setTextById('typing', '');
+        return;
+    }
+
+    const labels = typingUsers.map(({ userId, username }) => {
+        const name = username || userId || 'unknown';
+        return userId ? `${name}(${userId})` : name;
+    });
+
+    const text = labels.length <= 2
+        ? `${labels.join('、')} が入力中…`
+        : `${labels.slice(0, 2).join('、')} など${labels.length}人が入力中…`;
+
+    setTextById('typing', text);
 }
 function rememberMessage(message) {
     if (!message || !message.id)
