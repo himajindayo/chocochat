@@ -79,7 +79,11 @@ function sendMsg() {
         setDisabledById('send-btn', false);
         if (res?.success) {
             byId('msg-input').value = '';
-            setTextById('char-count', '0');
+            const cc = byId('char-count');
+            if (cc) {
+                cc.textContent = '0';
+                cc.classList.remove('over');
+            }
             cancelReply();
             clearTimeout(App.typingTimer);
             App.typingTimer = null;
