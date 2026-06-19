@@ -70,6 +70,20 @@ function buildMessageWrap({ className = '', dataset = {}, innerHTML = '' }) {
     return wrap;
 }
 
+function buildUserMetaHtml(username, userId, status = '') {
+    const parts = [];
+    if (username != null && username !== '') {
+        parts.push(`<span class="msg-uname">${esc(username)}</span>`);
+    }
+    if (userId != null && userId !== '') {
+        parts.push(`<span class="msg-uid">${esc(formatUserIdSuffix(userId))}</span>`);
+    }
+    if (status != null && status !== '') {
+        parts.push(`<span class="msg-status">${esc(status)}</span>`);
+    }
+    return parts.join('');
+}
+
 function addMsg(m) {
     const isMine = m.senderId === App.myUserId;
     const wrap = buildMessageWrap({
@@ -81,7 +95,7 @@ function addMsg(m) {
         },
         innerHTML: `${buildReplyPreviewHtml(m.replyTo)}
 <div class="msg-head">
-  <span class="msg-uname">${esc(formatUserLabel(m.senderUsername || '', m.senderId || ''))}</span>${m.senderStatus ? `<span class="msg-status">${esc(m.senderStatus)}</span>` : ''}
+  ${buildUserMetaHtml(m.senderUsername, m.senderId, m.senderStatus)}
   <span class="msg-time">${fmtTime(m.timestamp)}</span>${m.edited ? '<span class="msg-edit">(編集済み)</span>' : ''}
 </div>
 <div class="msg-body">${renderMessageBody(m.message || '')}</div>
@@ -133,9 +147,9 @@ function buildPmWrap(pm, { label, className }) {
         innerHTML: `
     <div class="msg-head pm-head">
       <span class="msg-status pm-mon-label">${label}</span>
-      <span class="msg-uname">${esc(formatUserLabel(pm.fromUsername || pm.fromId || '', pm.fromId || ''))}</span>
+      ${buildUserMetaHtml(pm.fromUsername, pm.fromId)}
       <span class="pm-arrow" aria-hidden="true">→</span>
-      <span class="msg-uname">${esc(formatUserLabel(pm.toUsername || pm.toId || '', pm.toId || ''))}</span>
+      ${buildUserMetaHtml(pm.toUsername, pm.toId)}
       <span class="msg-time">${fmtTime(pm.timestamp)}</span>
     </div>
     <div class="msg-body">${renderMessageBody(pm.message || '')}</div>
