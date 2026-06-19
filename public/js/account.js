@@ -52,7 +52,12 @@ function logout() {
     if (!confirm('ログアウトしますか？'))
         return;
     App.intentionalDisconnect = true;
-    socket.emit('logout', () => {
+    socket.timeout(5000).emit('logout', (err, res) => {
+        if (err || !res?.success) {
+            App.intentionalDisconnect = false;
+            alert(res?.error || err?.message || 'ログアウトに失敗しました');
+            return;
+        }
         localStorage.removeItem('token');
         location.reload();
     });
