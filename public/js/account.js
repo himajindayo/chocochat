@@ -71,6 +71,8 @@ function deleteAccount() {
             location.reload();
             return;
         }
+        if (btn)
+            btn.disabled = false;
         alert(res?.error || 'アカウント削除に失敗しました');
     });
 }
