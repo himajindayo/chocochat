@@ -18,9 +18,11 @@ function scrollChatToBottom() {
     const box = byId('chat-box');
     if (!box)
         return;
-    box.scrollTop = box.scrollHeight;
-    App.isAtBottom = true;
-    setNewMessageNoticeVisible(false);
+    requestAnimationFrame(() => {
+        box.scrollTop = box.scrollHeight;
+        App.isAtBottom = true;
+        setNewMessageNoticeVisible(false);
+    });
 }
 
 function syncChatScrollState() {
@@ -46,7 +48,11 @@ function appendToChat(el) {
         return;
     const wasAtBottom = App.isAtBottom;
     box.appendChild(el);
-    settleChatScroll(wasAtBottom);
+    if (wasAtBottom) {
+        scrollChatToBottom();
+        return;
+    }
+    setNewMessageNoticeVisible(true);
 }
 
 function insertTimelineItem(el) {
@@ -63,7 +69,11 @@ function insertTimelineItem(el) {
         box.insertBefore(el, before);
     else
         box.appendChild(el);
-    settleChatScroll(wasAtBottom);
+    if (wasAtBottom) {
+        scrollChatToBottom();
+        return;
+    }
+    setNewMessageNoticeVisible(true);
 }
 
 function buildActionButton(action, label) {
