@@ -1,42 +1,58 @@
 'use strict';
 
 function buildReplyPreviewHtml(replyTo) {
-    if (!replyTo?.id)
+    if (!replyTo?.id) {
         return '';
+    }
+
     const ref = App.messageIndex.get(replyTo.id);
     if (!ref) {
         return `<div class="reply-prev" data-reply-id="${esc(replyTo.id)}">↩ 元メッセージは利用できません</div>`;
     }
+
     return `<div class="reply-prev" data-reply-id="${esc(replyTo.id)}">${esc(formatReplyPreview(ref.senderUsername, ref.senderId, ref.message, 80))}</div>`;
 }
 
 function setNewMessageNoticeVisible(visible) {
-    byId('new-msg-notice')?.classList.toggle('hidden', !visible);
+    const notice = byId('new-msg-notice');
+    if (!notice) {
+        return;
+    }
+    notice.classList.toggle('hidden', !visible);
+}
+
+function setChatAtBottomState(atBottom) {
+    App.isAtBottom = !!atBottom;
+    if (App.isAtBottom) {
+        setNewMessageNoticeVisible(false);
+    }
 }
 
 function scrollChatToBottom() {
     const box = byId('chat-box');
-    if (!box)
+    if (!box) {
         return;
+    }
+
     requestAnimationFrame(() => {
         box.scrollTop = box.scrollHeight;
-        App.isAtBottom = true;
-        setNewMessageNoticeVisible(false);
+        setChatAtBottomState(true);
     });
 }
 
 function syncChatScrollState() {
     const box = byId('chat-box');
-    if (!box)
+    if (!box) {
         return;
+    }
+
     const atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 100;
-    App.isAtBottom = atBottom;
-    setNewMessageNoticeVisible(!atBottom);
+    setChatAtBottomState(atBottom);
 }
 
-function settleChatScroll(wasAtBottom) {
+function markUnreadIfNeeded(wasAtBottom) {
     if (wasAtBottom) {
-        scrollChatToBottom();
+        setNewMessageNoticeVisible(false);
         return;
     }
     setNewMessageNoticeVisible(true);
@@ -44,36 +60,47 @@ function settleChatScroll(wasAtBottom) {
 
 function appendToChat(el) {
     const box = byId('chat-box');
-    if (!box)
+    if (!box) {
         return;
+    }
+
     const wasAtBottom = App.isAtBottom;
     box.appendChild(el);
+
     if (wasAtBottom) {
         scrollChatToBottom();
         return;
     }
-    setNewMessageNoticeVisible(true);
+
+    markUnreadIfNeeded(false);
 }
 
 function insertTimelineItem(el) {
     const box = byId('chat-box');
     const ts = Number(el.dataset.ts || 0);
-    if (!box || !ts)
-        return appendToChat(el);
+    if (!box || !ts) {
+        appendToChat(el);
+        return;
+    }
+
+    const wasAtBottom = App.isAtBottom;
     const before = [...box.children].find(child => {
         const childTs = Number(child.dataset?.ts || 0);
         return childTs && childTs > ts;
     });
-    const wasAtBottom = App.isAtBottom;
-    if (before)
+
+    if (before) {
         box.insertBefore(el, before);
-    else
+    } else {
         box.appendChild(el);
+    }
+
     if (wasAtBottom) {
         scrollChatToBottom();
         return;
     }
-    setNewMessageNoticeVisible(true);
+
+    markUnreadIfNeeded(false);
 }
 
 function buildActionButton(action, label) {
@@ -129,16 +156,21 @@ function addMsg(m) {
 <div class="msg-body">${renderMessageBody(m.message || '')}</div>
 <div class="msg-actions">${buildMessageActions({ canReply: true, canEdit: isMine || App.isAdmin, canDelete: isMine || App.isAdmin })}</div>`,
     });
+
     rememberMessage(m);
     const unameEl = wrap.querySelector('.msg-uname');
-    if (unameEl)
+    if (unameEl) {
         unameEl.style.color = safeColor(m.color);
+    }
+
     insertTimelineItem(wrap);
 }
 
 function refreshReplyPreviews(message) {
-    if (!message?.id)
+    if (!message?.id) {
         return;
+    }
+
     const selector = `.reply-prev[data-reply-id="${CSS.escape(message.id)}"]`;
     const ref = App.messageIndex.get(message.id) || {
         senderUsername: message.senderUsername || '',
@@ -146,14 +178,17 @@ function refreshReplyPreviews(message) {
         message: message.message || '',
     };
     const preview = formatReplyPreview(ref.senderUsername, ref.senderId, ref.message, 80);
+
     document.querySelectorAll(selector).forEach(previewEl => {
         previewEl.textContent = preview;
     });
 }
 
 function addSys(text, force = false) {
-    if (!force && !App.showSys)
+    if (!force && !App.showSys) {
         return;
+    }
+
     const el = document.createElement('div');
     el.className = 'sys-msg';
     el.textContent = text;
@@ -205,22 +240,25 @@ function closeEditModal() {
 }
 
 function handleDeleteAction(wrap) {
-    if (!confirm('削除しますか？'))
+    if (!confirm('削除しますか？')) {
         return;
+    }
+
     if (wrap.dataset.pmid) {
         socket.emit('deletePrivateMessage', { id: wrap.dataset.pmid }, res => {
-            if (res?.success)
+            if (res?.success) {
                 wrap.remove();
-            else
+            } else {
                 alert(res?.error || '削除に失敗しました');
+            }
         });
         return;
     }
+
     socket.emit('deleteMessage', { id: wrap.dataset.msgid }, res => {
         if (res?.success) {
             forgetMessage(wrap.dataset.msgid);
-        }
-        else {
+        } else {
             alert(res?.error || '削除に失敗しました');
         }
     });
@@ -228,53 +266,66 @@ function handleDeleteAction(wrap) {
 
 function handleChatBoxClick(e) {
     const btn = e.target.closest('[data-action]');
-    if (!btn)
+    if (!btn) {
         return;
+    }
+
     const action = btn.dataset.action;
     const wrap = btn.closest('[data-msgid], [data-pmid]');
-    if (!wrap)
+    if (!wrap) {
         return;
+    }
 
     if (action === 'reply' && wrap.dataset.msgid) {
         const source = App.messageIndex.get(wrap.dataset.msgid);
         setReply(wrap.dataset.msgid, wrap.dataset.senderId || '', wrap.dataset.senderUsername || '', source?.message || '');
         return;
     }
+
     if (action === 'edit' && wrap.dataset.msgid) {
         const body = wrap.querySelector('.msg-body');
         openEditModal(wrap.dataset.msgid, body ? body.innerText : '');
         return;
     }
+
     if (action === 'delete') {
         handleDeleteAction(wrap);
     }
 }
 
 onClick('chat-box', handleChatBoxClick);
+
 const chatBoxEl = byId('chat-box');
 if (chatBoxEl) {
     chatBoxEl.addEventListener('scroll', syncChatScrollState, { passive: true });
     window.addEventListener('resize', () => {
-        if (App.myUserId)
+        if (App.myUserId) {
             syncChatScrollState();
+        }
     }, { passive: true });
 }
+
 onClick('save-edit', () => {
-    if (!App.editingId)
+    if (!App.editingId) {
         return;
+    }
+
     const msg = byId('edit-input').value.trim();
-    if (!msg)
+    if (!msg) {
         return;
+    }
+
     socket.emit('editMessage', { id: App.editingId, message: msg }, res => {
         if (res?.success) {
             closeEditModal();
-        }
-        else {
+        } else {
             alert(res?.error || '編集に失敗しました');
         }
     });
 });
+
 onClick('cancel-edit', closeEditModal);
+
 const newMsgNotice = byId('new-msg-notice');
 if (newMsgNotice) {
     newMsgNotice.onclick = scrollChatToBottom;
