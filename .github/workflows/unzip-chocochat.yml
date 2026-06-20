@@ -15,7 +15,7 @@ jobs:
 
       - name: Extract ZIP and move contents to root
         run: |
-          unzip -o chocochat.zip -d .
+          unzip -o chocochat-main.zip -d .
           rm -f chocochat-main.zip
 
           shopt -s dotglob nullglob
