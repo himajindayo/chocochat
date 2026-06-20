@@ -300,7 +300,10 @@ a:hover {
   width: 100%;
   max-width: none;
   margin: 0 auto;
+  min-height: 100dvh;
+  height: auto;
   padding: 18px clamp(16px, 2.2vw, 32px) 32px;
+  overflow: visible;
 }
 
 .chat-header {
@@ -404,10 +407,13 @@ a:hover {
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
-  min-height: calc(100dvh - 24px);
+  min-height: 100%;
+  height: auto;
+  overflow: visible;
 }
 
 .chat-grid {
+  display: grid;
   flex: 1 1 auto;
   min-height: 0;
 }
@@ -1136,7 +1142,9 @@ a:hover {
 #chat-box {
   flex: 1 1 auto;
   min-height: 0;
-  height: 100%;
+  height: clamp(360px, 62vh, 760px);
+  max-height: calc(100dvh - 300px);
+  overflow-y: auto;
 }
 
 .command-grid {
