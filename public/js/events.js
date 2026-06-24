@@ -1,7 +1,7 @@
 'use strict';
 socket.on('message', addMsg);
 socket.on('systemMessage', t => { if (typeof t === 'string')
-    addSys(t); });
+    addSystemMessage(t); });
 socket.on('privateMessage', addPm);
 socket.on('privateMessageMonitor', addPmMonitor);
 socket.on('commandCatalog', payload => {
@@ -33,11 +33,11 @@ socket.on('privateMessageDeleted', ({ id }) => {
     document.querySelector(`.pm-wrap[data-pmid="${CSS.escape(id)}"], .pm-monitor[data-pmid="${CSS.escape(id)}"]`)?.remove();
 });
 socket.on('userJoined', d => {
-    addSys(`${d.username} (${d.userId}) が入室しました`);
+    addSystemMessage(`${d.username} (${d.userId}) が入室しました`, 'presence');
     updateUserList(d.users, d.userStatuses);
 });
 socket.on('userLeft', d => {
-    addSys(`${d.username} (${d.userId}) が退室しました`);
+    addSystemMessage(`${d.username} (${d.userId}) が退室しました`, 'presence');
     updateUserList(d.users, d.userStatuses);
     App.typingMap.delete(d.userId);
     updateTypingDisplay();
@@ -55,7 +55,7 @@ socket.on('userStatusUpdate', d => {
 socket.on('banned', ({ message }) => { localStorage.removeItem('token'); alert(message || 'BANされました'); location.reload(); });
 socket.on('adminGranted', ({ message }) => { alert(message); location.reload(); });
 socket.on('adminRevoked', ({ message }) => { alert(message); location.reload(); });
-socket.on('error', e => addSys(`エラー: ${typeof e === 'string' ? e : (e?.message || '')}`));
+socket.on('error', e => addSystemMessage(`エラー: ${typeof e === 'string' ? e : (e?.message || '')}`));
 function emitTokenLogin() {
     const token = localStorage.getItem('token');
     if (!token)
@@ -67,7 +67,7 @@ socket.on('connect', () => {
 });
 socket.on('connect_error', e => {
     if (e?.message)
-        addSys(`接続エラー: ${e.message}`);
+        addSystemMessage(`接続エラー: ${e.message}`);
 });
 socket.on('disconnect', reason => {
     if (App.intentionalDisconnect) {
@@ -76,12 +76,12 @@ socket.on('disconnect', reason => {
     }
     if (!localStorage.getItem('token'))
         return;
-    addSys(`接続が切断されました${reason ? `（${reason}）` : ''}。再接続を試みます...`, true);
+    addSystemMessage(`接続が切断されました${reason ? `（${reason}）` : ''}。再接続を試みます...`);
 });
 socket.io.on('reconnect', () => {
     if (!localStorage.getItem('token'))
         return;
-    addSys('再接続しました', true);
+    addSystemMessage('再接続しました');
 });
 if (socket.connected)
     emitTokenLogin();
