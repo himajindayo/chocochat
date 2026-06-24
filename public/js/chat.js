@@ -49,6 +49,7 @@ function syncMsgInputBehavior() {
 }
 
 syncMsgInputBehavior();
+syncPresenceToggleButton();
 watchMediaQuery(mobileInputMedia, syncMsgInputBehavior);
 
 function setReply(id, senderId, senderUsername, message) {
@@ -118,6 +119,6 @@ msgInputEl?.addEventListener('input', () => {
     App.typingTimer = setTimeout(() => socket.emit('stopTyping'), 2000);
 });
 onClick('sys-toggle', () => {
-    App.showSys = !App.showSys;
-    byId('sys-toggle').textContent = App.showSys ? '入退室 ON' : '入退室 OFF';
+    App.showPresenceMessages = !App.showPresenceMessages;
+    syncPresenceToggleButton();
 });
