@@ -6,7 +6,7 @@ const App = {
     isSuperAdmin: false,
     replyTo: null,
     editingId: null,
-    showSys: true,
+    showPresenceMessages: true,
     isAtBottom: true,
     sending: false,
     typingMap: new Map(),
@@ -64,6 +64,12 @@ function toggleHiddenById(id, hidden) {
     if (el)
         el.classList.toggle('hidden', !!hidden);
     return el;
+}
+
+function syncPresenceToggleButton() {
+    const el = byId('sys-toggle');
+    if (el)
+        el.textContent = App.showPresenceMessages ? '入退室 ON' : '入退室 OFF';
 }
 function esc(s) {
     const d = document.createElement('div');
