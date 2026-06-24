@@ -184,8 +184,8 @@ function refreshReplyPreviews(message) {
     });
 }
 
-function addSys(text, force = false) {
-    if (!force && !App.showSys) {
+function addSystemMessage(text, kind = 'general') {
+    if (kind === 'presence' && !App.showPresenceMessages) {
         return;
     }
 
