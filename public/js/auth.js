@@ -41,8 +41,10 @@ onClick('signup-btn', () => {
         return setAuthMsg('ユーザー名を入力してください（20文字以内）');
     if (username.includes('管理者'))
         return setAuthMsg('ユーザー名に「管理者」は含められません');
-    if (password.length < 4)
-        return setAuthMsg('パスワードは4文字以上で入力してください');
+    if (password.length < 8)
+        return setAuthMsg('パスワードは8文字以上で入力してください');
+    if (password.length > 256)
+        return setAuthMsg('パスワードは256文字以内で入力してください');
     if (password !== confirmPassword)
         return setAuthMsg('パスワードが一致しません');
     socket.emit('signup', { userId, username, password }, res => {

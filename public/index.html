@@ -15,7 +15,7 @@
     <div id="login-form" class="auth-form active">
       <h3>ログイン</h3>
       <input type="text" id="l-uid" placeholder="ユーザーID" maxlength="20" autocomplete="username" autofocus spellcheck="false">
-      <input type="password" id="l-pass" placeholder="パスワード" autocomplete="current-password" spellcheck="false">
+      <input type="password" id="l-pass" placeholder="パスワード" maxlength="256" autocomplete="current-password" spellcheck="false">
       <button class="btn-primary" id="login-btn">ログイン</button>
       <div class="auth-link">アカウントがありませんか？ <a id="to-signup">新規登録</a></div>
     </div>
@@ -23,10 +23,10 @@
     <div id="signup-form" class="auth-form">
       <h3>新規登録</h3>
       <p class="auth-hint">新しいアカウントを作成</p>
-      <input type="text" id="s-uid" placeholder="ユーザーID（半角英数字 4〜20文字）" minlength="4" maxlength="20" autocomplete="username">
-      <input type="text" id="s-uname" placeholder="ユーザー名（表示名）" maxlength="20">
-      <input type="password" id="s-pass" placeholder="パスワード（4文字以上）" autocomplete="new-password">
-      <input type="password" id="s-pass2" placeholder="パスワード（確認）" autocomplete="new-password">
+      <input type="text" id="s-uid" placeholder="ユーザーID" minlength="4" maxlength="20" autocomplete="username">
+      <input type="text" id="s-uname" placeholder="ユーザー名" maxlength="20">
+      <input type="password" id="s-pass" placeholder="パスワード" maxlength="256" autocomplete="new-password">
+      <input type="password" id="s-pass2" placeholder="パスワード（確認）" maxlength="256" autocomplete="new-password">
       <button class="btn-primary" id="signup-btn">アカウント作成</button>
       <div class="auth-link">既にアカウントがありますか？ <a id="to-login">ログイン</a></div>
     </div>
