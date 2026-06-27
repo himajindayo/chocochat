@@ -7,7 +7,7 @@ let msgInputKeydownAttached = false;
 let lastTypingEmitAt = 0;
 
 function isMobileInputMode() {
-    return !!mobileInputMedia.matches;
+    return !!mobileInputMedia?.matches;
 }
 
 function getMsgInputPlaceholder() {

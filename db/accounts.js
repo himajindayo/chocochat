@@ -40,17 +40,15 @@ async function signup({ userId, username, password, ip }) {
             await client.query('ROLLBACK');
             return { success: false, error: 'このユーザーIDはすでに使用されています' };
         }
-        if (createdIpHash) {
-            const reserved = await client.query(
-                `SELECT COUNT(*)::int AS account_count
-                   FROM accounts
-                  WHERE created_ip_hash = $1`,
-                [createdIpHash]
-            );
-            if (reserved.rows[0].account_count >= MAX_ACCOUNTS_PER_IP) {
-                await client.query('ROLLBACK');
-                return { success: false, error: 'このIPアドレスからはこれ以上アカウントを作成できません' };
-            }
+        const reserved = await client.query(
+            `SELECT COUNT(*)::int AS account_count
+               FROM accounts
+              WHERE created_ip_hash = $1`,
+            [createdIpHash]
+        );
+        if (reserved.rows[0].account_count >= MAX_ACCOUNTS_PER_IP) {
+            await client.query('ROLLBACK');
+            return { success: false, error: 'このIPアドレスからはこれ以上アカウントを作成できません' };
         }
         const hash = await bcrypt.hash(password, SALT_ROUNDS);
         const token = crypto.randomBytes(32).toString('hex');

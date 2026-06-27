@@ -5,8 +5,15 @@ function getMediaQueryList(query) {
     return window.matchMedia(query);
 }
 function watchMediaQuery(mql, handler) {
-    if (!mql || typeof handler !== 'function' || typeof mql.addEventListener !== 'function')
+    if (!mql || typeof handler !== 'function')
         return undefined;
-    mql.addEventListener('change', handler);
-    return () => mql.removeEventListener('change', handler);
+    if (typeof mql.addEventListener === 'function') {
+        mql.addEventListener('change', handler);
+        return () => mql.removeEventListener('change', handler);
+    }
+    if (typeof mql.addListener === 'function') {
+        mql.addListener(handler);
+        return () => mql.removeListener(handler);
+    }
+    return undefined;
 }

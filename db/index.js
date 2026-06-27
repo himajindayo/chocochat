@@ -6,10 +6,6 @@ const schema = require('./schema');
 const { createPool } = require('./pool');
 let pool = null;
 async function initDatabase() {
-    const url = process.env.DATABASE_URL;
-    if (!url) {
-        throw new Error('DATABASE_URL が未設定です');
-    }
     try {
         pool = createPool();
         await pool.query('SELECT 1');

@@ -15,7 +15,7 @@ function parseAllowedOrigins(value) {
 }
 function isOriginAllowed(origin, host, allowedOrigins) {
     if (!origin)
-        return true;
+        return allowedOrigins === null;
     if (allowedOrigins === null) {
         try {
             const u = new URL(origin);
@@ -25,15 +25,7 @@ function isOriginAllowed(origin, host, allowedOrigins) {
             return false;
         }
     }
-    if (allowedOrigins.includes(origin))
-        return true;
-    try {
-        const u = new URL(origin);
-        return u.host === host;
-    }
-    catch {
-        return false;
-    }
+    return allowedOrigins.includes(origin);
 }
 function createSocketServer(httpServer, db) {
     const allowedOrigins = parseAllowedOrigins(process.env.ALLOWED_ORIGIN);

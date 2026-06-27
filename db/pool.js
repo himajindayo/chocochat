@@ -1,5 +1,11 @@
 'use strict';
 const { Pool } = require('pg');
+
+function parsePositiveInt(value, fallback) {
+    const n = Number(value);
+    return Number.isInteger(n) && n > 0 ? n : fallback;
+}
+
 function getPoolConfig() {
     const connectionString = process.env.DATABASE_URL;
     if (!connectionString) {
@@ -8,10 +14,10 @@ function getPoolConfig() {
     const useSsl = process.env.DATABASE_SSL === 'true';
     return {
         connectionString,
-        connectionTimeoutMillis: 5_000,
-        idleTimeoutMillis: 10_000,
-        max: 20,
-        query_timeout: 10_000,
+        connectionTimeoutMillis: parsePositiveInt(process.env.PGPOOL_CONNECTION_TIMEOUT_MS, 5_000),
+        idleTimeoutMillis: parsePositiveInt(process.env.PGPOOL_IDLE_TIMEOUT_MS, 10_000),
+        max: parsePositiveInt(process.env.PGPOOL_MAX, 20),
+        query_timeout: parsePositiveInt(process.env.PGPOOL_QUERY_TIMEOUT_MS, 10_000),
         ssl: useSsl,
     };
 }
